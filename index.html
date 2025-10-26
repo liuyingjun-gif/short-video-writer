@@ -1,0 +1,515 @@
+<!--
+短影音腳本生成器（前端 + 安全代理）
+==================================
+
+🎯 目標
+— 讓使用者上傳逐字稿（.srt / .txt）或貼上文章，選擇影片型態，按下「生成」，即得到 60 秒內的短影音腳本。
+
+🔧 架構
+— GitHub Pages：純前端（本檔 index.html）。
+— Cloudflare Workers（或任何 Serverless）：作為 OpenAI API 代理，安全保存 API Key（/api/generate）。
+
+📦 功能
+1) 上傳/貼上內容：支援 .srt/.txt，或直接貼文。
+2) 自動解析：
+   • SRT 解析為 time-coded 逐字稿
+   • 純文字自動斷句 + 假設 180 wpm 估計時間碼
+3) 三種腳本型態：
+   • Podcast 一鏡到底型（5 段 45–75 秒，附時間碼 + 重點）
+   • 議題型（60 秒內旁白腳本 + 建議時間/畫面）
+   • 人物故事型（60 秒內腳本：原音摘錄 + 旁白 + 畫面）
+4) 前端無金鑰：以 Serverless 代理呼叫 OpenAI，避免金鑰外洩。
+5) 下載：支援複製、下載 .md / .txt
+
+🚀 部署步驟（摘要）
+1) 將本檔案做為你的 GitHub Pages 之 index.html。
+2) 於 Cloudflare Workers 部署 /api/generate（worker 程式見本文最下方 <script type="text/plain" id="worker-js"> 區塊）。
+3) 在 index.html 的 CONFIG.API_BASE 設定你的 Workers 網域，例如：https://your-worker.your-subdomain.workers.dev
+
+— — — — — — — — — — — — — — — — — — — — —
+-->
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>短影音腳本生成器</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root { --card: 255 255 255; --ink: 17 24 39; --muted: 107 114 128; }
+    body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Noto Sans, 'Helvetica Neue', Arial; }
+    .card { background: rgb(var(--card)); box-shadow: 0 10px 25px rgba(0,0,0,.06); border-radius: 1.25rem; }
+    .btn { border-radius: 9999px; padding: .75rem 1rem; font-weight: 600; }
+    .btn-primary { background: #0ea5e9; color: white; }
+    .btn-ghost { background: #f3f4f6; color: rgb(var(--ink)); }
+    textarea { tab-size: 2; }
+    .mono { font-feature-settings: "ss01" 1, "ss02" 1; }
+    .code { background: #0f172a; color: #e2e8f0; border-radius: .75rem; padding: 1rem; overflow: auto; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900">
+  <header class="max-w-6xl mx-auto px-4 py-10">
+    <h1 class="text-3xl md:text-4xl font-bold tracking-tight">短影音腳本生成器</h1>
+    <p class="text-slate-600 mt-2">部署提示：此版本已為 GitHub Pages 的「專案網站」最佳化（repo：<code>short-video-writer</code>）。請先到程式最下方「CONFIG.API_BASE」改成你的 Cloudflare Workers 網址，再提交即可使用。若尚未部署 Worker，頁面仍可開啟但無法呼叫生成 API。</p>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 grid md:grid-cols-5 gap-6 pb-24">
+    <!-- 左側：輸入區 -->
+    <section class="md:col-span-3 space-y-6">
+      <div class="card p-6">
+        <h2 class="text-xl font-semibold mb-4">第一步：上傳或貼上內容</h2>
+        <div class="grid md:grid-cols-2 gap-4">
+          <label class="block">
+            <span class="text-sm text-slate-600">上傳逐字稿（.srt / .txt）</span>
+            <input id="fileInput" type="file" accept=".srt,.txt" class="mt-2 block w-full text-sm" />
+          </label>
+          <div class="flex items-end">
+            <button id="btnClear" class="btn btn-ghost w-full">清空</button>
+          </div>
+        </div>
+        <label class="block mt-4">
+          <span class="text-sm text-slate-600">或直接貼上文章/逐字稿</span>
+          <textarea id="rawInput" rows="10" class="mt-2 w-full p-3 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-400" placeholder="貼上 .srt（含時間碼）或純文字內容…"></textarea>
+        </label>
+        <div class="mt-3 text-xs text-slate-500">提示：純文字會自動估算時間碼（以 180 wpm 推估）。</div>
+      </div>
+
+      <div class="card p-6">
+        <h2 class="text-xl font-semibold mb-4">第二步：選擇影片型態</h2>
+        <div class="grid md:grid-cols-3 gap-4">
+          <label class="flex gap-3 items-start p-3 rounded-lg border border-slate-200 hover:border-sky-300 cursor-pointer">
+            <input type="radio" name="mode" value="podcast" class="mt-1" checked>
+            <div>
+              <div class="font-semibold">Podcast 一鏡到底型</div>
+              <div class="text-sm text-slate-600">輸出 5 段 45–75 秒連續片段，附時間碼與重點。</div>
+            </div>
+          </label>
+          <label class="flex gap-3 items-start p-3 rounded-lg border border-slate-200 hover:border-sky-300 cursor-pointer">
+            <input type="radio" name="mode" value="topic" class="mt-1">
+            <div>
+              <div class="font-semibold">議題型</div>
+              <div class="text-sm text-slate-600">依內容寫 60 秒旁白腳本，附建議時間與畫面。</div>
+            </div>
+          </label>
+          <label class="flex gap-3 items-start p-3 rounded-lg border border-slate-200 hover:border-sky-300 cursor-pointer">
+            <input type="radio" name="mode" value="people" class="mt-1">
+            <div>
+              <div class="font-semibold">人物故事型</div>
+              <div class="text-sm text-slate-600">60 秒腳本：原音摘錄 + 建議旁白 + 畫面。</div>
+            </div>
+          </label>
+        </div>
+
+        <details class="mt-4">
+          <summary class="cursor-pointer text-slate-700 font-medium">進階選項</summary>
+          <div class="grid md:grid-cols-3 gap-4 mt-4">
+            <label class="block">
+              <span class="text-sm text-slate-600">語氣/風格</span>
+              <select id="tone" class="mt-2 w-full p-2 rounded-lg border border-slate-200">
+                <option value="中性專業">中性專業</option>
+                <option value="感人故事">感人故事</option>
+                <option value="資訊爆點">資訊爆點</option>
+                <option value="懸疑鋪陳">懸疑鋪陳</option>
+                <option value="活潑親子">活潑親子</option>
+              </select>
+            </label>
+            <label class="block">
+              <span class="text-sm text-slate-600">目標觀眾</span>
+              <input id="audience" class="mt-2 w-full p-2 rounded-lg border border-slate-200" placeholder="如：家長、老師、青少年…" />
+            </label>
+            <label class="block">
+              <span class="text-sm text-slate-600">禁用詞（逗號分隔）</span>
+              <input id="banned" class="mt-2 w-full p-2 rounded-lg border border-slate-200" placeholder="如：震撼、爆…" />
+            </label>
+          </div>
+        </details>
+      </div>
+
+      <div class="card p-6">
+        <h2 class="text-xl font-semibold mb-4">第三步：生成</h2>
+        <div class="flex flex-wrap gap-3">
+          <button id="btnGenerate" class="btn btn-primary flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 6v12m6-6H6"/></svg>
+            確認生成
+          </button>
+          <button id="btnSample" class="btn btn-ghost">載入範例內容</button>
+        </div>
+        <div id="sysMsg" class="mt-3 text-sm text-slate-600"></div>
+      </div>
+    </section>
+
+    <!-- 右側：輸出區 -->
+    <section class="md:col-span-2 space-y-6">
+      <div class="card p-6">
+        <h2 class="text-xl font-semibold mb-4">第四步：生成之內容腳本</h2>
+        <div class="flex gap-2 mb-3">
+          <button id="btnCopy" class="btn btn-ghost">複製</button>
+          <button id="btnDownloadMd" class="btn btn-ghost">下載 .md</button>
+          <button id="btnDownloadTxt" class="btn btn-ghost">下載 .txt</button>
+        </div>
+        <pre id="output" class="code text-sm whitespace-pre-wrap"></pre>
+      </div>
+
+      <div class="card p-6">
+        <h2 class="text-lg font-semibold">解析結果（偵測到的時間碼與片段）</h2>
+        <div id="parsePreview" class="mt-3 text-sm text-slate-700 whitespace-pre-wrap"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+  const CONFIG = {
+    API_BASE: 'https://<你的-workers子域>.workers.dev' // ← 先改成你的 Cloudflare Workers 網址，例如：https://svscript-liuyingjun.workers.dev, // ← 換成你的 Workers 網域
+    ENDPOINT: '/api/generate',
+    INFER_WPM: 180, // 純文字估算語速（每分鐘字數）
+  };
+
+  // ———————— 小工具 ————————
+  const el = (id) => document.getElementById(id);
+  const fmtTime = (sec) => {
+    sec = Math.max(0, Math.floor(sec));
+    const h = String(Math.floor(sec / 3600)).padStart(2,'0');
+    const m = String(Math.floor((sec % 3600) / 60)).padStart(2,'0');
+    const s = String(sec % 60).padStart(2,'0');
+    return (h==='00'? `${m}:${s}` : `${h}:${m}:${s}`);
+  }
+
+  // ———————— SRT 解析 ————————
+  function parseSRT(text) {
+    const blocks = text.replace(/\r/g,'').split(/\n\n+/).map(b=>b.trim()).filter(Boolean);
+    const cues = [];
+    for (const b of blocks) {
+      const lines = b.split(/\n/);
+      if (lines.length >= 2) {
+        const timeLine = lines[1].match(/(\d{2}:\d{2}:\d{2}[.,]\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}[.,]\d{3})/);
+        if (!timeLine) continue;
+        const start = toSeconds(timeLine[1]);
+        const end = toSeconds(timeLine[2]);
+        const text = lines.slice(2).join(' ').replace(/<[^>]+>/g,'').trim();
+        if (text) cues.push({ start, end, text });
+      }
+    }
+    return cues;
+  }
+  function toSeconds(t) {
+    const [hh,mm,ssms] = t.replace(',', '.').split(':');
+    const [ss, ms] = ssms.split('.');
+    return (+hh)*3600 + (+mm)*60 + (+ss) + (+ms)/1000;
+  }
+
+  // ———————— 純文字估時 ————————
+  function estimateCuesFromText(text, wpm = CONFIG.INFER_WPM) {
+    // 以句號/換行斷句，估每字秒數
+    const chars = text.replace(/\s+/g,' ').trim();
+    if (!chars) return [];
+    const words = chars.split(/\s+/).length;
+    const totalSeconds = Math.max(10, Math.round((words / wpm) * 60));
+    // 粗略每句切時間
+    const segments = chars.split(/(?<=[。！？!?,，\n])/);
+    const durPerChar = totalSeconds / chars.length;
+    let t = 0; const cues = [];
+    for (const seg of segments) {
+      const d = Math.max(0.5, Math.round(seg.length * durPerChar));
+      const start = t; const end = t + d; t = end;
+      const text = seg.trim(); if (text) cues.push({ start, end, text });
+    }
+    return cues;
+  }
+
+  // ———————— 連續片段推薦（找 45–75 秒） ————————
+  function suggestWindows(cues, min=45, max=75, topK=5) {
+    // 滑動窗：以 cue 邊界組成連續窗，分數 = 期間內字數
+    const points = [...new Set(cues.flatMap(c=>[c.start, c.end]))].sort((a,b)=>a-b);
+    const windows = [];
+    for (let i=0; i<points.length; i++){
+      for (let j=i+1; j<points.length; j++){
+        const s = points[i], e = points[j];
+        const dur = e - s; if (dur < min || dur > max) continue;
+        const within = cues.filter(c=> c.start >= s && c.end <= e);
+        const score = within.reduce((acc,c)=> acc + c.text.length, 0);
+        windows.push({ start:s, end:e, dur:dur, score, text: within.map(c=>c.text).join(' ') });
+      }
+    }
+    windows.sort((a,b)=> b.score - a.score);
+    // 去重/避免重疊過高（IoU > 0.6）
+    const pick = [];
+    for (const w of windows){
+      if (pick.length >= topK) break;
+      const ok = pick.every(p=> overlapRatio(p,w) < 0.6);
+      if (ok) pick.push(w);
+    }
+    return pick.map(w=> ({
+      start: w.start, end: w.end, duration: Math.round(w.dur),
+      timestr: `${fmtTime(w.start)}–${fmtTime(w.end)}`,
+      text: w.text.trim()
+    }));
+  }
+  function overlapRatio(a,b){
+    const inter = Math.max(0, Math.min(a.end,b.end) - Math.max(a.start,b.start));
+    const uni = (a.end-a.start) + (b.end-b.start) - inter;
+    return uni ? inter/uni : 0;
+  }
+
+  // ———————— Prompt 模板 ————————
+  function buildPrompt(mode, payload){
+    const base = `你是台灣中文內容製作的短影音腳本編劇，請用繁體中文輸出。不要包含道歉或多餘說明。所有輸出一律用 Markdown 格式。`;
+
+    const common = `
+【受眾】${payload.audience || '一般大眾'}
+【語氣】${payload.tone || '中性專業'}
+【禁用詞】${payload.banned || '（無）'}
+請避免出現禁用詞的同義重述與變形。
+`;
+
+    const content = payload.text;
+    const detected = payload.detectedWindows || [];
+
+    if (mode === 'podcast'){
+      return `${base}
+${common}
+已解析的逐字稿片段（供參考）：\n${detected.map((w,i)=>`${i+1}. ${w.timestr}｜${w.text.slice(0,80)}…`).join('\n')}
+
+任務：從完整逐字稿中，精選 5 段「可一鏡到底」的連續片段（每段 45–75 秒），以便剪成短影音。
+輸出格式（Markdown）：
+### Podcast 一鏡到底推薦（5 段）
+1) 時間碼：起訖（mm:ss–mm:ss）
+   內容摘要：三句以內
+   內容重點：• … • …
+2) …（共 5 段）
+
+規則：
+- 僅挑「連續」且語意完整的片段。
+- 優先有清楚起承轉合、金句、定義、行動建議的片段。
+- 若逐字稿無法精確時間，請保留估計值並標註「約」。
+- 不要加入旁白或 B-roll 建議（本型態只要時間碼+重點）。
+
+以下是逐字稿全文：\n${content}`;
+    }
+
+    if (mode === 'topic'){
+      return `${base}
+${common}
+任務：根據提供內容，寫出「60 秒內」的議題型短影音旁白腳本，並附上建議時間與畫面（B-roll/字幕）。
+輸出格式（Markdown）：
+### 議題型 60 秒腳本
+- 00–05s｜開場鉤子：…（字幕：…）
+- 05–25s｜背景/數據：…（畫面：…）
+- 25–45s｜觀點/對比：…（畫面：…）
+- 45–60s｜行動呼籲/收束：…（畫面：…）
+補充：可列 3 組備用開場鉤子（10 字內）。
+
+規則：
+- 嚴格控制在 60 秒內（口播約 140–160 字）。
+- 使用台灣用語與標點。
+- 若原文含數據，請簡潔引用並標註來源（若未知則寫「資料來源：原文提供」）。
+
+以下是全文：\n${content}`;
+    }
+
+    // people
+    return `${base}
+${common}
+任務：根據提供內容，寫出「60 秒內」的人物故事型腳本，需包含「原音摘錄（附大意）」＋「建議旁白」＋「建議畫面」。
+輸出格式（Markdown）：
+### 人物故事型 60 秒腳本
+- 00–08s｜原音：…（大意：…）／畫面：…／旁白：…
+- 08–25s｜原音：…（大意：…）／畫面：…／旁白：…
+- 25–45s｜原音：…（大意：…）／畫面：…／旁白：…
+- 45–60s｜原音：…（大意：…）／畫面：…／旁白：…
+備註：若原文沒有可用原音，請以引號標示「擬真原音」並清楚註記。
+
+規則：
+- 嚴格控制在 60 秒內。
+- 原音用短句、鏗鏘、可貼字幕；旁白補足情緒與脈絡。
+
+以下是全文：\n${content}`;
+  }
+
+  // ———————— UI 綁定 ————————
+  const fileInput = el('fileInput');
+  const rawInput = el('rawInput');
+  const parsePreview = el('parsePreview');
+  const output = el('output');
+  const sysMsg = el('sysMsg');
+
+  fileInput.addEventListener('change', async (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return; const text = await f.text();
+    rawInput.value = text;
+    runParsePreview();
+  });
+  el('btnClear').addEventListener('click', ()=>{
+    fileInput.value = '';
+    rawInput.value = '';
+    parsePreview.textContent = '';
+    output.textContent = '';
+  });
+  rawInput.addEventListener('input', runParsePreview);
+
+  function runParsePreview(){
+    const text = rawInput.value.trim();
+    if (!text){ parsePreview.textContent = ''; return; }
+    const isSrt = /-->/.test(text) && /\d{2}:\d{2}:\d{2}[.,]\d{3}/.test(text);
+    const cues = isSrt ? parseSRT(text) : estimateCuesFromText(text);
+    const picks = suggestWindows(cues, 45, 75, 5);
+    const lines = [
+      `偵測類型：${isSrt?'SRT（含時間碼）':'純文字（估算時間）'}`,
+      `共解析 ${cues.length} 個句段`,
+      `推薦 45–75 秒片段（至多 5 段）：`,
+      ...picks.map((w,i)=>`${i+1}. ${w.timestr}｜約 ${w.duration}s｜${w.text.slice(0,100)}…`)
+    ];
+    parsePreview.textContent = lines.join('\n');
+    // 暫存到 dataset
+    parsePreview.dataset.detected = JSON.stringify(picks);
+  }
+
+  el('btnSample').addEventListener('click', ()=>{
+    rawInput.value = `1\n00:00:00,000 --> 00:00:04,000\n大家好，歡迎收聽親師關鍵字，我是主持人。\n\n2\n00:00:04,200 --> 00:00:12,000\n今天我們要談「AI 自學」，近年越來越多孩子把 AI 當成學習與聊天的夥伴。\n\n3\n00:00:12,100 --> 00:00:24,000\n像是一位國小五年級學生，他用 AI 寫程式做出 Apple Watch 記帳 App，這也讓家長思考該如何陪伴。\n\n4\n00:00:24,000 --> 00:00:38,000\n不過，過度依賴也可能造成判斷力與情緒的影響，今天我們就從三個問題來聊聊。\n\n5\n00:00:38,100 --> 00:00:50,000\n第一，家長如何辨識孩子與 AI 互動的品質？第二，學校該怎麼引導？第三，有哪些實際陪伴策略？`;
+    runParsePreview();
+  });
+
+  el('btnGenerate').addEventListener('click', async ()=>{
+    const text = rawInput.value.trim();
+    if (!text) { sysMsg.textContent = '請先上傳或貼上內容'; return; }
+    const mode = document.querySelector('input[name="mode"]:checked')?.value || 'podcast';
+    const tone = el('tone').value; const audience = el('audience').value; const banned = el('banned').value;
+    const detectedWindows = JSON.parse(parsePreview.dataset.detected || '[]');
+
+    const prompt = buildPrompt(mode, { text, tone, audience, banned, detectedWindows });
+    output.textContent = '⏳ 生成中…\n\n' + prompt.slice(0, 600) + (prompt.length>600?'\n…（略）':'');
+    sysMsg.textContent = '已送出請求，約需數秒。';
+
+    try {
+      const res = await fetch(`${CONFIG.API_BASE}${CONFIG.ENDPOINT}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, mode })
+      });
+      if (!res.ok){
+        const t = await res.text(); throw new Error(`API 錯誤：${res.status} ${t}`);
+      }
+      const data = await res.json();
+      output.textContent = (data.text || '').trim();
+      sysMsg.textContent = '✅ 已完成';
+    } catch (err){
+      output.textContent = String(err);
+      sysMsg.textContent = '❌ 發生錯誤';
+    }
+  });
+
+  el('btnCopy').addEventListener('click', async ()=>{
+    const t = output.textContent; if (!t) return;
+    await navigator.clipboard.writeText(t);
+    sysMsg.textContent = '已複製到剪貼簿';
+  });
+  el('btnDownloadMd').addEventListener('click', ()=> download('script.md', output.textContent));
+  el('btnDownloadTxt').addEventListener('click', ()=> download('script.txt', output.textContent));
+
+  function download(name, content){
+    const blob = new Blob([content], {type:'text/plain;charset=utf-8'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
+    setTimeout(()=> URL.revokeObjectURL(a.href), 1000);
+  }
+  </script>
+
+  <!--
+  ===============================
+  Serverless 代理（Cloudflare Workers）
+  ===============================
+  用途：保護 OpenAI API Key。將以下 JS 存為 worker.js，於 Cloudflare Workers 部署，並設定環境變數：
+  • OPENAI_API_KEY = sk-xxxxx
+  • MODEL = gpt-5.1-mini（或你希望的模型）
+
+  路徑：/api/generate
+  跨網域：請視情況調整 CORS。
+  -->
+  <script type="text/plain" id="worker-js">// worker.js
+export default {
+  async fetch(request, env, ctx) {
+    const url = new URL(request.url);
+    if (url.pathname !== '/api/generate') return new Response('Not Found', { status: 404 });
+
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { headers: corsHeaders() });
+    }
+
+    try {
+      const { prompt, mode } = await request.json();
+      if (!prompt) return json({ error: 'Missing prompt' }, 400);
+
+      // 你也可以依 mode 切換不同系統提示或模型
+      const model = env.MODEL || 'gpt-5.1-mini';
+
+      const payload = {
+        model,
+        messages: [
+          { role: 'system', content: 'You are a helpful assistant that writes Traditional Chinese short-video scripts in Markdown. Keep outputs concise and within 60 seconds when asked.' },
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.7,
+      };
+
+      const r = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${env.OPENAI_API_KEY}` },
+        body: JSON.stringify(payload)
+      });
+      const j = await r.json();
+      if (!r.ok) return json({ error: j.error?.message || 'Upstream error' }, r.status);
+
+      const text = j.choices?.[0]?.message?.content || '';
+      return json({ text });
+    } catch (e) {
+      return json({ error: String(e) }, 500);
+    }
+  }
+}
+
+function corsHeaders(){
+  return {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+  }
+}
+
+function json(data, status=200){
+  return new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json', ...corsHeaders() } });
+}
+</script>
+
+  <!--
+  ===============================
+  補充：輸出 JSON 結構（若你想給編輯器或後續流程使用）
+  ===============================
+  Podcast 一鏡到底型（5 段）
+  {
+    "type": "podcast",
+    "segments": [
+      {"start": "00:12", "end": "01:05", "summary": "…", "bullets": ["…","…"]},
+      … x5
+    ]
+  }
+
+  議題型（60 秒）
+  {
+    "type": "topic",
+    "timeline": [
+      {"range": "00–05s", "narration": "…", "visual": "…", "caption": "…"},
+      …
+    ],
+    "hooks": ["…","…","…"]
+  }
+
+  人物故事型（60 秒）
+  {
+    "type": "people",
+    "timeline": [
+      {"range": "00–08s", "raw": "…", "gist": "…", "narration": "…", "visual": "…"}, …
+    ]
+  }
+  -->
+</body>
+</html>
