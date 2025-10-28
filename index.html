@@ -91,7 +91,7 @@
         </label>
         <label class="flex items-start gap-3 cursor-pointer">
           <input type="radio" name="mode" value="people">
-          <span><strong>人物故事型：</strong>原音摘錄 + 旁白 + 畫面</span>
+          <span><strong>人物故事型：：</strong>原音摘錄 + 旁白 + 畫面</span>
         </label>
       </div>
 
@@ -208,7 +208,7 @@
     updateGenerateButtonState();
   }
   inputText.addEventListener('input', updateCharCounter);
-  modelSelect.addEventListener('change', updateGenerateButtonState); // 模型變更時檢查是否有 Key
+  modelSelect.addEventListener('change', updateGenerateButtonState); 
   
   function updateGenerateButtonState() {
     const [provider, modelName] = modelSelect.value.split(':');
@@ -217,13 +217,14 @@
     let hasKey = false;
     if (provider === 'openai') {
       hasKey = Boolean(userOpenAIKey);
-    } else if (provider === 'gemini') {
+    } 
+    // 檢查 Gemini Key
+    else if (provider === 'gemini') {
       hasKey = Boolean(userGeminiKey);
     }
 
     generateBtn.disabled = !(hasKey && hasInput);
 
-    // 調整 sysMsg 提示，讓使用者知道哪個 Key 缺失
     if (!hasKey) {
       sysMsg.textContent = `請先儲存有效的 ${provider.toUpperCase()} API Key，才能使用 ${modelName} 模型。`;
     } else {
@@ -243,12 +244,15 @@
 
   // === Key 處理邏輯 (OpenAI) ===
   btnSaveOpenAIKey.addEventListener('click', () => {
-    const val = openaiKeyInput.value.trim();
+    // 關鍵修正：強制去除所有空格和不可見字元
+    const rawVal = openaiKeyInput.value;
+    const val = rawVal.replace(/\s/g, '').trim(); 
+
     if (val === MASK && userOpenAIKey) {
         openaiKeyHint.textContent = `✅ 金鑰未變更：sk-****${userOpenAIKey.slice(-4)}（已儲存）`;
         return; 
     }
-    // 支援 sk- 或 sk-proj- 開頭，並允許字母、數字、下劃線、連字符
+    // 支援 sk- 或 sk-proj- 開頭
     const API_KEY_REGEX = /^sk-(proj-)?[a-zA-Z0-9_-]{40,}$/;
 
     if (!API_KEY_REGEX.test(val)) {
@@ -257,7 +261,7 @@
     }
     localStorage.setItem(KEY_OPENAI, val);
     userOpenAIKey = val;
-    loadKeys(); // 重新載入 Key 狀態
+    loadKeys(); 
     updateGenerateButtonState();
   });
 
@@ -270,12 +274,15 @@
   
   // === Key 處理邏輯 (Gemini) ===
   btnSaveGeminiKey.addEventListener('click', () => {
-    const val = geminiKeyInput.value.trim();
+    // 關鍵修正：強制去除所有空格和不可見字元
+    const rawVal = geminiKeyInput.value;
+    const val = rawVal.replace(/\s/g, '').trim(); 
+
     if (val === MASK && userGeminiKey) {
         geminiKeyHint.textContent = `✅ 金鑰未變更：AIza****${userGeminiKey.slice(-4)}（已儲存）`;
         return; 
     }
-    // **修正後的 Regex：更標準化地檢查 AIzaSy 開頭和總長度**
+    // 修復 Regex：檢查 AIzaSy 開頭和總長度
     const API_KEY_REGEX = /^AIzaSy[a-zA-Z0-9_-]{35,45}$/; 
 
     if (!API_KEY_REGEX.test(val)) {
@@ -284,7 +291,7 @@
     }
     localStorage.setItem(KEY_GEMINI, val);
     userGeminiKey = val;
-    loadKeys(); // 重新載入 Key 狀態
+    loadKeys(); 
     updateGenerateButtonState();
   });
 
@@ -337,8 +344,6 @@
           headers = {
             'Content-Type': 'application/json',
           };
-          // 在 Gemini 中，我們將 System Message 和 User Prompt 串接起來放在 User 訊息中
-          // 確保模型收到完整的指令
           body = JSON.stringify({
             contents: [
               { role: 'user', parts: [{ text: `${systemMessageContent}\n\n${prompt}` }] }
