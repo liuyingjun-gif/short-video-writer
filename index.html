@@ -62,7 +62,7 @@
         <div class="text-gray-700">已輸入：<span id="charCount" class="font-semibold">0</span>／建議範圍內剩餘：<span id="charRemain" class="font-semibold">0</span></div>
       </div>
       <textarea id="inputText" rows="10" placeholder="請貼上逐字稿或文章內容...（注意：長文可能超出模型單次處理限制）" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-400"></textarea>
-      <p class="muted mt-2">提示：此版本不再有自動摘要功能。若內容過長，請自行精簡，以避免超出模型的 Token 限制導致生成失敗。</p>
+      <p class="muted mt-2">提示：若內容過長，請自行精簡，以避免超出模型的 Token 限制導致生成失敗。</p>
     </div>
 
     <div class="card">
@@ -90,7 +90,6 @@
           <option value="gpt-3.5-turbo">gpt-3.5-turbo（速度快、低成本）</option>
         </select>
         <label class="flex items-center gap-2 text-sm ml-4 text-gray-500">
-            <span>已移除「先摘要」功能，請自行精簡內容。</span>
         </label>
       </div>
       <p class="muted mt-2">本工具使用 <code>/v1/chat/completions</code> 端點。</p>
@@ -180,29 +179,25 @@
   }
 
   // === 
-  // === 修正 API Key 儲存邏輯：允許 _ 和 - 字符，以及 'proj-' ===
+  // === API Key 儲存邏輯 (支援 sk- 和 sk-proj-) ===
   // ===
   saveBtn.addEventListener('click', () => {
     const val = keyInput.value.trim();
     
-    // 1. 如果輸入欄位是遮罩，且 userApiKey 已經存在，視為有效
     if (val === MASK && userApiKey) {
         keyHint.textContent = `✅ 金鑰未變更：sk-****${userApiKey.slice(-4)}（已儲存）`;
         return; 
     }
     
-    // 2. 設置新的、更寬容的正規表達式 (Regex)
-    // 允許 sk- 或 sk-proj- 開頭，後面跟隨字母、數字、下劃線、連字符
-    // 且 Key 的主體（非前缀）至少 40 個字符長
+    // 支援 sk- 或 sk-proj- 開頭，並允許字母、數字、下劃線、連字符
     const API_KEY_REGEX = /^sk-(proj-)?[a-zA-Z0-9_-]{40,}$/;
 
     if (!API_KEY_REGEX.test(val)) {
-      // 檢查失敗，顯示錯誤
       keyHint.innerHTML = '<span class="warn">請檢查 API Key 格式是否正確（必須以 sk- 或 sk-proj- 開頭），儲存失敗。</span>';
       return;
     }
     
-    // 3. 儲存成功
+    // 儲存成功
     localStorage.setItem(KEY_STORAGE, val);
     userApiKey = val;
     keyInput.value = MASK;
@@ -300,7 +295,9 @@ ${task}
 ${sourceText}`;
   }
 
-  // === 生成主流程 (已移除摘要) ===
+  // === 
+  // === 生成主流程 (包含優化的 429 錯誤提示) ===
+  // ===
   generateBtn.addEventListener('click', async () => {
     const raw = inputText.value.trim();
     if (!raw) {
@@ -335,21 +332,31 @@ ${sourceText}`;
 
       output.textContent = result;
       sysMsg.textContent = '✅ 已完成';
+    
     } catch (err) {
       if (err.name === 'AbortError') {
         output.textContent = '❌ 錯誤：操作超時，已終止請求。';
         sysMsg.textContent = '請求已超時（網路連線、內容過長或模型延遲）。';
+      
       } else if (err.message.includes('HTTP 401')) {
-        output.textContent = `❌ 錯誤：API Key 無效或授權失敗。`;
+        output.textContent = `❌ 錯誤：API Key 無效或授權失敗 (HTTP 401)。`;
         sysMsg.textContent = '請檢查您的 API Key 是否正確且有效。';
+      
+      } else if (err.message.includes('HTTP 429')) {
+        // **針對 429 錯誤提供更精確的提示**
+        output.textContent = `❌ 錯誤：${err?.message || 'HTTP 429'}`;
+        sysMsg.textContent = '錯誤：已達 API 速率或額度上限 (Quota)。請登入 OpenAI 檢查您的帳單與付款設定。';
+      
       } else if (err.message.includes('400') && err.message.includes('maximum context length')) {
         output.textContent = `❌ 錯誤：輸入內容過長，超過模型最大 Token 限制。`;
         sysMsg.textContent = '請精簡您的文章內容後再試。';
+      
       } else {
         output.textContent = `❌ 錯誤：${err?.message || err.toString()}`;
-        sysMsg.textContent = '發生錯誤（請檢查 API Key、用量或速率上限）。';
+        sysMsg.textContent = '發生未知錯誤（請檢查主控台 Console）。';
       }
       console.error(err);
+    
     } finally {
       clearTimeout(timeout);
       setControlsDisabled(false);
