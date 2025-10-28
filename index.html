@@ -125,11 +125,25 @@
 
     <div class="card">
       <h2 class="text-2xl font-semibold mb-4 text-gray-800">第二步：貼上文章或逐字稿</h2>
+      
+      <div class="mb-4">
+        <label for="fileUpload" class="block text-sm font-medium text-gray-700 mb-2">或上傳 .txt / .srt 檔案：</label>
+        <input type="file" id="fileUpload" accept=".txt,.srt" class="block w-full text-sm text-gray-500
+          file:mr-4 file:py-2 file:px-4
+          file:rounded-full file:border-0
+          file:text-sm file:font-semibold
+          file:bg-sky-50 file:text-sky-700
+          hover:file:bg-sky-100
+          cursor-pointer
+        ">
+        <p id="fileUploadHint" class="muted mt-2"></p>
+      </div>
+
       <div class="flex items-center justify-between mb-3 text-sm">
         <div class="text-gray-700">建議字數：<span id="charLimit" class="font-semibold text-sky-600"></span> 字</div>
         <div class="text-gray-700">已輸入 (不含空行)：<span id="charCount" class="font-semibold text-sky-600">0</span>／建議範圍內剩餘：<span id="charRemain" class="font-semibold text-sky-600">0</span></div>
       </div>
-      <textarea id="inputText" rows="10" placeholder="請貼上逐字稿或文章內容...（注意：長文可能超出模型單次處理限制）" class="w-full input-style"></textarea>
+      <textarea id="inputText" rows="10" placeholder="請貼上逐字稿、文章內容，或從上方上傳檔案...（注意：長文可能超出模型單次處理限制）" class="w-full input-style"></textarea>
       <p class="muted mt-2">提示：若內容過長，請自行精簡，以避免超出模型的 Token 限制導致生成失敗。</p>
     </div>
 
@@ -143,11 +157,11 @@
         </label>
         <label class="flex items-start gap-3 cursor-pointer">
           <input type="radio" name="mode" value="topic" class="mt-1 accent-sky-600">
-          <span><strong>議題型：</strong>60 秒旁白腳本 + 建議畫面</span>
+          <span><strong>議題型：</strong>3 段 45–75 秒旁白腳本 + 建議畫面</span>
         </label>
         <label class="flex items-start gap-3 cursor-pointer">
           <input type="radio" name="mode" value="people" class="mt-1 accent-sky-600">
-          <span><strong>人物故事型：：</strong>原音摘錄 + 旁白 + 畫面</span>
+          <span><strong>人物故事型：：</strong>3 段 45–75 秒原音摘錄 + 旁白 + 畫面</span>
         </label>
       </div>
 
@@ -213,7 +227,6 @@
   const generateBtn = el('btnGenerate');
   const output = el('output');
   const sysMsg = el('sysMsg');
-  // 增加 copyMsg 元素引用
   const copyMsg = el('copyMsg'); 
   
   const modelSelect = el('modelSelect');
@@ -222,6 +235,11 @@
   const charCount = el('charRemain').previousElementSibling; 
   const charRemain = el('charRemain');
   const modeRadios = document.querySelectorAll('input[name="mode"]');
+
+  // 【修改 3/4】: 新增檔案上傳的 DOM 引用
+  const fileUpload = el('fileUpload');
+  const fileUploadHint = el('fileUploadHint');
+
   const controlElements = [generateBtn, modelSelect, inputText, ...modeRadios];
 
   // === 狀態初始化 ===
@@ -251,7 +269,7 @@
   updateCharCounter();
   updateGenerateButtonState();
   
-  // === 【新增】結果區提示詞小幫手 ===
+  // === 結果區提示詞小幫手 ===
   function showCopyMessage(message, isError = false) {
     copyMsg.textContent = message;
     if (isError) {
@@ -316,6 +334,7 @@
     geminiKeyInput.disabled = disabled; 
     btnSaveGeminiKey.disabled = disabled;
     btnClearGeminiKey.disabled = disabled;
+    fileUpload.disabled = disabled; // 禁用檔案上傳
   }
 
   // === Key 處理邏輯 (OpenAI) ===
@@ -372,9 +391,57 @@
     updateGenerateButtonState();
   });
 
+  // === 【新增】檔案上傳處理 ===
+  function handleFileUpload(event) {
+    const file = event.target.files[0];
+    if (!file) {
+      fileUploadHint.textContent = '';
+      return;
+    }
+    
+    // 再次檢查 (雖然 accept 屬性有幫助)
+    const isTxt = file.type === 'text/plain';
+    const isSrt = file.name.toLowerCase().endsWith('.srt');
+    
+    if (!isTxt && !isSrt) {
+      fileUploadHint.textContent = '❌ 檔案格式錯誤，僅支援 .txt 與 .srt';
+      fileUploadHint.classList.add('warn');
+      event.target.value = null; // 清除 input
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+      try {
+        const text = e.target.result;
+        inputText.value = text;
+        // 手動觸發 input 事件，以更新字數統計和按鈕狀態
+        inputText.dispatchEvent(new Event('input', { bubbles: true }));
+        fileUploadHint.textContent = `✅ 已載入檔案：${file.name} (${file.size.toLocaleString()} bytes)`;
+        fileUploadHint.classList.remove('warn');
+      } catch (readError) {
+          fileUploadHint.textContent = `❌ 讀取檔案內容時發生錯誤: ${readError.message}`;
+          fileUploadHint.classList.add('warn');
+      }
+    };
+
+    reader.onerror = () => {
+      fileUploadHint.textContent = '❌ 讀取檔案失敗。請檢查瀏覽器權限。';
+      fileUploadHint.classList.add('warn');
+    };
+
+    // 預設使用 UTF-8 讀取，這對 .srt 和多數 .txt 格式是標準的
+    // 注意：若使用者上傳 Big5 編碼的 .txt，這裡讀取會是亂碼。
+    reader.readAsText(file, 'UTF-8');
+    
+    // 清空 input value 讓使用者可以重覆上傳同一個檔案
+    event.target.value = null;
+  }
+  fileUpload.addEventListener('change', handleFileUpload);
+
 
   // === 核心 API 呼叫函式 (支援 OpenAI/Gemini) ===
-  // (這部分是上一則回覆中被截斷的)
   async function callChatCompletions({ provider, modelName, prompt, signal }) {
     const MAX_RETRY = 3;
     let attempt = 0;
@@ -466,13 +533,13 @@
     throw lastErr || new Error('呼叫失敗，請檢查網路連線或稍後再試');
   }
 
-  // === 任務：腳本提示詞 (使用字串模板) ===
+  // === 【修改 4/4】: 更新任務腳本 ===
   function buildScriptPrompt(mode, sourceText) {
-    const base = '你是台灣中文內容製作的短影音腳本編劇，請用繁體中文撰寫。請優先使用 Markdown 表格 (table) 格式來組織你的輸出內容。';
+    const base = '你是一個專門協助數位影音企劃的助理，使用者的主要對象是影音編輯與企劃同事。目標是接收使用者提供的文字內容或檔案，根據不同需求快速產出對應的成品。常見的任務包括：為文章或節目取標題、整理摘要重點、整理錄音逐字稿，最後生成短影音腳本。請用繁體中文撰寫。請優先使用 Markdown 表格 (table) 格式來組織你的輸出內容。';
     let task = '';
     if (mode === 'podcast') task = '請選出 5 段 45–75 秒可一鏡到底的重點片段，附時間碼與重點，內容基於以下原文。';
-    else if (mode === 'topic') task = '請寫出 60 秒議題型旁白腳本 + 建議畫面，內容基於以下原文。';
-    else task = '請寫出 60 秒人物故事型腳本，包含原音摘錄、大意與建議畫面，內容基於以下原文。';
+    else if (mode === 'topic') task = '請寫出 3 段 45–75 秒議題型旁白腳本 + 建議畫面，內容基於以下原文。';
+    else task = '請寫出 3 段 45–75 秒人物故事型腳本，包含原音摘錄、大意與建議畫面，內容基於以下原文。';
     
     return `${base}${task}
 
@@ -482,11 +549,9 @@ ${sourceText}`;
 
   // === 生成主流程 ===
   generateBtn.addEventListener('click', async () => {
-    // 【提示詞位置修改】: 開始生成時，清除舊的複製提示
     showCopyMessage('', false); 
   
     const raw = inputText.value;
-    // 使用不含空行的標準來檢查
     const processedRaw = raw.replace(/^\s*[\r\n]/gm, '').trim(); 
     
     if (!processedRaw) {
@@ -502,7 +567,6 @@ ${sourceText}`;
         return;
     }
     
-    // 使用處理過的長度來比較
     if (processedRaw.length > INPUT_CHAR_LIMIT) {
         if (!confirm(`警告：您貼上的內容 (${processedRaw.length} 字) 已超出建議限制 (${INPUT_CHAR_LIMIT} 字)。\n\n直接傳送給模型可能會因為 Token 數超限而失敗。確定要繼續嗎？`)) {
             sysMsg.textContent = '生成已取消。請精簡內容後再試。';
@@ -520,7 +584,6 @@ ${sourceText}`;
     const timeout = setTimeout(() => ac.abort(), USE_TIMEOUT_MS);
 
     try {
-      // 傳送給 API 時，我們還是傳送包含空行的原始文本
       const scriptPrompt = buildScriptPrompt(mode, raw.trim()); 
       const result = await callChatCompletions({ provider, modelName, prompt: scriptPrompt, signal: ac.signal });
 
@@ -566,7 +629,6 @@ ${sourceText}`;
     const text = output.textContent; // 備用的純文字
 
     if (!text || text.startsWith('❌ 錯誤') || text.startsWith('請輸入')) {
-        // 【提示詞位置修改】: 使用 showCopyMessage
         showCopyMessage('請先生成有效的內容。', true);
         return;
     }
@@ -580,17 +642,14 @@ ${sourceText}`;
         });
         // @ts-ignore
         await navigator.clipboard.write([item]);
-        // 【提示詞位置修改】: 使用 showCopyMessage
         showCopyMessage('✅ 已複製表格 (可貼到 Google Docs/Sheets)', false);
     
     } catch (error) {
         // 如果富文本失敗 (例如瀏覽器不支援)，則降級回純文字
         try {
             await navigator.clipboard.writeText(text);
-            // 【提示詞位置修改】: 使用 showCopyMessage
             showCopyMessage('✅ 已複製純文字 (富文本複製失敗)', false);
         } catch (err2) {
-            // 【提示詞位置修改】: 使用 showCopyMessage
             showCopyMessage('❌ 複製失敗，瀏覽器權限不足。', true);
             console.error(err2);
         }
@@ -600,7 +659,6 @@ ${sourceText}`;
   el('btnDownload').addEventListener('click', () => {
     const text = output.textContent; 
     if (!text || text.startsWith('❌ 錯誤') || text.startsWith('請輸入')) {
-        // 【提示詞位置修改】: 使用 showCopyMessage
         showCopyMessage('請先生成有效的內容。', true);
         return;
     }
@@ -609,10 +667,10 @@ ${sourceText}`;
     a.href = URL.createObjectURL(blob);
     a.download = '短影音腳本.txt';
     a.click();
-    // 【提示詞位置修改】: 增加下載提示
     showCopyMessage('✅ 已開始下載 .txt 檔案', false);
   });
   </script>
 </body>
 </html>
+
 
