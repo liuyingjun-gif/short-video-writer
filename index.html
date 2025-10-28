@@ -10,52 +10,67 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     /* 基本樣式與藍色調優化 */
-    body { font-family: 'Inter', sans-serif; background: #f0f3f8; color: #111827; }
+    body { 
+        font-family: 'Inter', sans-serif; 
+        background: #f5f8fa; /* 淺藍灰背景 */
+        color: #111827; 
+    }
     .card { 
         background: white; 
-        border-radius: 1.25rem; /* 稍微更圓潤 */
-        box-shadow: 0 10px 30px rgba(0,0,0,.08); /* 更明顯的陰影 */
-        padding: 2rem; /* 增加內邊距 */
-        border: 1px solid #e5e7eb; /* 輕微邊框 */
+        border-radius: 1.25rem; 
+        box-shadow: 0 10px 30px rgba(0,0,0,.08); 
+        padding: 2rem; 
+        border: 1px solid #e5e7eb; 
     }
     
     /* 按鈕樣式 */
     .btn { border-radius: 9999px; padding: .6rem 1.5rem; font-weight: 600; transition: all 0.2s; }
     .btn-primary { 
-        background: #0284c7; 
+        background: #0284c7; /* 深藍色 */
         color: #fff; 
         box-shadow: 0 4px 10px rgba(2, 132, 199, 0.4);
     }
     .btn-primary:hover:not(:disabled) { background: #0369a1; box-shadow: 0 6px 15px rgba(2, 132, 199, 0.5); }
-    .btn-ghost { background: #eef2ff; color: #0284c7; border: 1px solid #c7d2fe; } /* 淺藍色系按鈕 */
-    .btn-ghost:hover:not(:disabled) { background: #dbeafe; } /* 懸停時更深的藍色 */
+    .btn-ghost { 
+        background: #e1e9f1; /* 淺灰色底色塊 */
+        color: #1f2937; /* 深灰文字 */
+        border: 1px solid #c7d2fe; 
+    } 
+    .btn-ghost:hover:not(:disabled) { background: #d3dce6; } 
     
     /* 禁用狀態 */
     .btn:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
 
+    /* 輸入框樣式優化 */
+    .input-style {
+        padding: 0.75rem;
+        border: 1px solid #cbd5e1;
+        border-radius: 0.75rem;
+        transition: border-color 0.2s;
+        background-color: #f7f9fb; /* 淺灰藍背景 */
+    }
+    .input-style:focus {
+        border-color: #0284c7;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.2);
+        background-color: white; /* 聚焦時變為白色 */
+    }
+    .input-style:disabled {
+        background-color: #e5e7eb;
+    }
+
     /* 程式碼與提示樣式 */
     .code { 
-      background: #0f172a; 
-      color: #e2e8f0; 
+      background: #1f2937; /* 深灰色 */
+      color: #f9fafb; 
       border-radius: .75rem; 
-      padding: 1.5rem;  /* 增加內邊距 */
+      padding: 1.5rem;  
       overflow: auto; 
       white-space: pre-wrap; 
       font-size: 0.875rem;
     }
     .muted { color:#6b7280; font-size:12px }
     .warn { color:#dc2626; font-weight: 700; } 
-    .input-style {
-        padding: 0.75rem;
-        border: 1px solid #cbd5e1;
-        border-radius: 0.75rem;
-        transition: border-color 0.2s;
-    }
-    .input-style:focus {
-        border-color: #0284c7;
-        outline: none;
-        box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.2);
-    }
   </style>
 </head>
 <body>
@@ -233,12 +248,13 @@
     const hasInput = inputText.value.trim().length > 0;
     
     let hasKey = false;
+    
+    // 核心邏輯：僅檢查所選模型對應的 Key 是否存在
     if (provider === 'openai') {
-      hasKey = Boolean(userOpenAIKey);
+      hasKey = Boolean(userOpenAIKey); 
     } 
-    // 檢查 Gemini Key
     else if (provider === 'gemini') {
-      hasKey = Boolean(userGeminiKey);
+      hasKey = Boolean(userGeminiKey); 
     }
 
     generateBtn.disabled = !(hasKey && hasInput);
@@ -300,11 +316,11 @@
         geminiKeyHint.textContent = `✅ 金鑰未變更：AIza****${userGeminiKey.slice(-4)}（已儲存）`;
         return; 
     }
-    // 修復 Regex (前次修正): 檢查 AIzaSy 開頭和總長度 (39-51 字元)
-    const API_KEY_REGEX = /^AIzaSy[a-zA-Z0-9_-]{33,45}$/; 
+    // 【已修正】將 Regex 的長度範圍進一步放寬，以確保能儲存 Key (長度 39 到 55)
+    const API_KEY_REGEX = /^AIzaSy[a-zA-Z0-9_-]{33,49}$/; 
 
     if (!API_KEY_REGEX.test(val)) {
-      geminiKeyHint.innerHTML = '<span class="warn">格式錯誤（必須以 AIzaSy 開頭，且長度足夠，約 39-49 個字元）。</span>';
+      geminiKeyHint.innerHTML = '<span class="warn">格式錯誤（必須以 AIzaSy 開頭，且長度足夠，約 39-55 個字元）。</span>';
       return;
     }
     localStorage.setItem(KEY_GEMINI, val);
@@ -357,12 +373,12 @@
           });
 
         } else if (provider === 'gemini') {
-          // Gemini API 呼叫結構
+          // Gemini API 呼叫結構 (已修正 config -> generationConfig)
           url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
           headers = {
             'Content-Type': 'application/json',
           };
-          // 【已修正】將 config 改為 generationConfig，解決 HTTP 400 錯誤。
+          // 注意：此處將 systemMessageContent 併入 user 訊息中
           body = JSON.stringify({
             contents: [
               { role: 'user', parts: [{ text: `${systemMessageContent}\n\n${prompt}` }] }
