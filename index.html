@@ -15,6 +15,7 @@
     .btn-primary { background: #0284c7; color: #fff; }
     .btn-ghost { background: #f3f4f6; color: #111827; }
     .code { background: #0f172a; color: #e2e8f0; border-radius: .75rem; padding: 1rem; overflow: auto; white-space: pre-wrap; }
+    .muted { color:#6b7280; font-size:12px }
   </style>
 </head>
 <body>
@@ -28,23 +29,25 @@
     <div class="card">
       <h2 class="text-xl font-semibold mb-3">第一步：輸入你的 OpenAI API Key</h2>
       <p class="text-sm text-gray-600 mb-3">請貼上你的 API 金鑰（開頭為 <code>sk-</code>）。此金鑰僅會儲存在你的瀏覽器，不會上傳。</p>
-      <div class="flex gap-2">
+      <div class="flex gap-2 items-center">
         <input id="userApiKey" type="password" placeholder="sk-xxxxxxxxxxxxxxxx" class="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-400">
         <button id="btnSaveKey" class="btn btn-ghost">儲存</button>
         <button id="btnClearKey" class="btn btn-ghost">清除</button>
       </div>
+      <p id="keyHint" class="muted mt-2"></p>
     </div>
 
     <!-- 文字輸入區 -->
     <div class="card">
       <h2 class="text-xl font-semibold mb-3">第二步：貼上文章或逐字稿</h2>
       <textarea id="inputText" rows="10" placeholder="請貼上逐字稿或文章內容..." class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-400"></textarea>
+      <p class="muted mt-2">提示：若內容很長，建議分段貼上以避免超過 token 限制。</p>
     </div>
 
-    <!-- 型態選擇 -->
+    <!-- 型態選擇 + 模型選擇 -->
     <div class="card">
-      <h2 class="text-xl font-semibold mb-3">第三步：選擇影片型態</h2>
-      <div class="space-y-2">
+      <h2 class="text-xl font-semibold mb-3">第三步：選擇影片型態與模型</h2>
+      <div class="space-y-2 mb-4">
         <label class="flex items-start gap-3">
           <input type="radio" name="mode" value="podcast" checked>
           <span><strong>Podcast 一鏡到底型：</strong>提供 5 段 45–75 秒重點片段</span>
@@ -58,12 +61,27 @@
           <span><strong>人物故事型：</strong>原音摘錄 + 旁白 + 畫面</span>
         </label>
       </div>
+
+      <div class="flex flex-wrap items-center gap-3">
+        <label class="text-sm text-gray-700">模型：</label>
+        <select id="modelSelect" class="p-2 border border-gray-300 rounded-lg">
+          <option value="gpt-4o-mini" selected>gpt-4o-mini（建議）</option>
+          <option value="gpt-5.1-mini">gpt-5.1-mini</option>
+          <option value="gpt-4.1-mini">gpt-4.1-mini</option>
+        </select>
+        <label class="text-sm text-gray-700 ml-4">端點：</label>
+        <select id="endpointSelect" class="p-2 border border-gray-300 rounded-lg">
+          <option value="responses" selected>/v1/responses（建議）</option>
+          <option value="chat">/v1/chat/completions（相容舊版）</option>
+        </select>
+      </div>
+      <p class="muted mt-2">若遇到 404/405/`model_not_found`，請改用另一個端點或模型。</p>
     </div>
 
     <!-- 生成按鈕 -->
     <div class="card">
       <h2 class="text-xl font-semibold mb-3">第四步：生成腳本</h2>
-      <button id="btnGenerate" class="btn btn-primary">確認生成</button>
+      <button id="btnGenerate" class="btn btn-primary" disabled>確認生成</button>
       <p id="sysMsg" class="text-sm text-gray-600 mt-3"></p>
     </div>
 
@@ -79,9 +97,12 @@
   </main>
 
   <script>
+  // === 設定 ===
   const KEY_STORAGE = 'user_api_key';
-  let userApiKey = localStorage.getItem(KEY_STORAGE) || '';
+  const MASK = '********';
+  const USE_TIMEOUT_MS = 90_000;
 
+  // === 元件 ===
   const el = id => document.getElementById(id);
   const keyInput = el('userApiKey');
   const saveBtn = el('btnSaveKey');
@@ -89,72 +110,143 @@
   const generateBtn = el('btnGenerate');
   const output = el('output');
   const sysMsg = el('sysMsg');
+  const keyHint = el('keyHint');
+  const modelSelect = el('modelSelect');
+  const endpointSelect = el('endpointSelect');
 
-  if (userApiKey) keyInput.value = '********';
+  // === 狀態 ===
+  let userApiKey = localStorage.getItem(KEY_STORAGE) || '';
+  if (userApiKey) {
+    keyInput.value = MASK;
+    keyHint.textContent = `目前已儲存金鑰：sk-****${userApiKey.slice(-4)}（僅存在瀏覽器）`;
+  }
+  updateGenerateButtonState();
 
+  function updateGenerateButtonState() {
+    generateBtn.disabled = !Boolean(userApiKey);
+  }
+
+  // === 金鑰操作 ===
   saveBtn.addEventListener('click', () => {
     const val = keyInput.value.trim();
-    if (!val.startsWith('sk-')) return alert('請輸入正確格式的 API Key（開頭為 sk-）');
+    if (val === MASK) {
+      alert('這是遮罩文字，請重新貼上真正的 API Key（sk- 開頭）。');
+      return;
+    }
+    if (!/^sk-[A-Za-z0-9]{20,}/.test(val)) {
+      alert('請輸入正確格式的 API Key（開頭為 sk-）');
+      return;
+    }
     localStorage.setItem(KEY_STORAGE, val);
     userApiKey = val;
-    keyInput.value = '********';
+    keyInput.value = MASK;
+    keyHint.textContent = `目前已儲存金鑰：sk-****${userApiKey.slice(-4)}（僅存在瀏覽器）`;
     alert('✅ API Key 已儲存於瀏覽器');
+    updateGenerateButtonState();
   });
 
   clearBtn.addEventListener('click', () => {
     localStorage.removeItem(KEY_STORAGE);
     userApiKey = '';
     keyInput.value = '';
+    keyHint.textContent = '';
     alert('🔒 已清除 API Key');
+    updateGenerateButtonState();
   });
 
-  generateBtn.addEventListener('click', async () => {
-    const text = el('inputText').value.trim();
-    if (!text) return alert('請先貼上內容');
-    if (!userApiKey) return alert('請先輸入你的 OpenAI API Key');
-
-    const mode = document.querySelector('input[name="mode"]:checked')?.value || 'topic';
-
-    const basePrompt = `你是台灣中文內容製作的短影音腳本編劇，請用繁體中文撰寫 Markdown 格式輸出。`;
+  // === 工具 ===
+  function buildPrompt(mode, text) {
+    const base = `你是台灣中文內容製作的短影音腳本編劇，請用繁體中文撰寫 Markdown 格式輸出。`;
     let task = '';
     if (mode === 'podcast') task = '請選出 5 段 45–75 秒可一鏡到底的重點片段，附時間碼與重點';
     else if (mode === 'topic') task = '請寫出 60 秒議題型旁白腳本，附建議時間與畫面';
     else task = '請寫出 60 秒人物故事型腳本，包含原音摘錄、大意與建議畫面';
+    return `${base}\n${task}\n以下是全文：\n${text}`;
+  }
 
-    const prompt = `${basePrompt}\n${task}\n以下是全文：\n${text}`;
+  async function safeParseJson(text) {
+    try { return JSON.parse(text); } catch { return null; }
+  }
 
-    output.textContent = '⏳ 正在生成中...';
-    sysMsg.textContent = '請稍候，AI 正在撰寫腳本';
+  async function callOpenAI({ model, endpoint, prompt, signal }) {
+    const url = endpoint === 'responses'
+      ? 'https://api.openai.com/v1/responses'
+      : 'https://api.openai.com/v1/chat/completions';
 
-    try {
-      const res = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${userApiKey}`,
-        },
-        body: JSON.stringify({
-          model: 'gpt-5.1-mini',
+    const body = endpoint === 'responses'
+      ? { model, input: prompt, temperature: 0.7 }
+      : {
+          model,
           messages: [
             { role: 'system', content: 'You are a helpful assistant that writes Traditional Chinese short-video scripts in Markdown.' },
             { role: 'user', content: prompt }
           ],
-          temperature: 0.7,
-        }),
-      });
+          temperature: 0.7
+        };
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error?.message || 'API 回傳錯誤');
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${userApiKey}`,
+      },
+      body: JSON.stringify(body),
+      signal
+    });
 
-      const textOut = data.choices?.[0]?.message?.content || '(無內容)';
-      output.textContent = textOut;
+    const raw = await res.text();
+    const data = await safeParseJson(raw);
+
+    if (!res.ok) {
+      const msg = data?.error?.message || raw || `HTTP ${res.status}`;
+      throw new Error(`HTTP ${res.status} ${res.statusText}｜${msg}`);
+    }
+
+    // Responses API
+    if (endpoint === 'responses') {
+      // 文字輸出可能在 output_text 或 choices[0].message?.content
+      const textOut = data?.output_text
+        || data?.content?.[0]?.text
+        || data?.choices?.[0]?.message?.content
+        || '(無內容)';
+      return textOut;
+    }
+
+    // Chat Completions
+    return data?.choices?.[0]?.message?.content || '(無內容)';
+  }
+
+  // === 生成 ===
+  generateBtn.addEventListener('click', async () => {
+    const text = document.getElementById('inputText').value.trim();
+    if (!text) return alert('請先貼上內容');
+    if (!userApiKey) return alert('請先輸入你的 OpenAI API Key');
+
+    const mode = document.querySelector('input[name="mode"]:checked')?.value || 'topic';
+    const prompt = buildPrompt(mode, text);
+    const model = modelSelect.value;
+    const endpoint = endpointSelect.value;
+
+    output.textContent = '⏳ 正在生成中...';
+    sysMsg.textContent = '請稍候，AI 正在撰寫腳本';
+
+    const ac = new AbortController();
+    const t = setTimeout(() => ac.abort(), USE_TIMEOUT_MS);
+
+    try {
+      const result = await callOpenAI({ model, endpoint, prompt, signal: ac.signal });
+      output.textContent = result;
       sysMsg.textContent = '✅ 已完成';
     } catch (err) {
-      output.textContent = '❌ 錯誤：' + err.message;
-      sysMsg.textContent = '發生錯誤';
+      output.textContent = '❌ 錯誤：' + (err?.message || err);
+      sysMsg.textContent = '發生錯誤（請查看瀏覽器主控台 Console 與 Network）';
+      console.error(err);
+    } finally {
+      clearTimeout(t);
     }
   });
 
+  // === 複製 / 下載 ===
   el('btnCopy').addEventListener('click', async () => {
     const text = output.textContent;
     if (!text) return;
