@@ -75,7 +75,7 @@
         <div class="text-gray-700">已輸入：<span id="charCount" class="font-semibold">0</span>／建議範圍內剩餘：<span id="charRemain" class="font-semibold">0</span></div>
       </div>
       <textarea id="inputText" rows="10" placeholder="請貼上逐字稿或文章內容...（注意：長文可能超出模型單次處理限制）" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-400"></textarea>
-      <p class="muted mt-2">提示：此版本不再有自動摘要功能。若內容過長，請自行精簡，以避免超出模型的 Token 限制導致生成失敗。</p>
+      <p class="muted mt-2">提示：若內容過長，請自行精簡，以避免超出模型的 Token 限制導致生成失敗。</p>
     </div>
 
     <div class="card">
