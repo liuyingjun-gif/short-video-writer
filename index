@@ -223,8 +223,9 @@
 
     generateBtn.disabled = !(hasKey && hasInput);
 
+    // 調整 sysMsg 提示，讓使用者知道哪個 Key 缺失
     if (!hasKey) {
-      sysMsg.textContent = `請先儲存有效的 ${provider.toUpperCase()} API Key。`;
+      sysMsg.textContent = `請先儲存有效的 ${provider.toUpperCase()} API Key，才能使用 ${modelName} 模型。`;
     } else {
       sysMsg.textContent = '已就緒，點擊確認生成。';
     }
@@ -274,11 +275,11 @@
         geminiKeyHint.textContent = `✅ 金鑰未變更：AIza****${userGeminiKey.slice(-4)}（已儲存）`;
         return; 
     }
-    // 檢查是否以 AIzaSy 開頭
-    const API_KEY_REGEX = /^AIzaSy[a-zA-Z0-9_-]{35,}$/; 
+    // **修正後的 Regex：更標準化地檢查 AIzaSy 開頭和總長度**
+    const API_KEY_REGEX = /^AIzaSy[a-zA-Z0-9_-]{35,45}$/; 
 
     if (!API_KEY_REGEX.test(val)) {
-      geminiKeyHint.innerHTML = '<span class="warn">格式錯誤（必須以 AIzaSy 開頭，且長度足夠）。</span>';
+      geminiKeyHint.innerHTML = '<span class="warn">格式錯誤（必須以 AIzaSy 開頭，且長度足夠，約 39-49 個字元）。</span>';
       return;
     }
     localStorage.setItem(KEY_GEMINI, val);
@@ -336,6 +337,8 @@
           headers = {
             'Content-Type': 'application/json',
           };
+          // 在 Gemini 中，我們將 System Message 和 User Prompt 串接起來放在 User 訊息中
+          // 確保模型收到完整的指令
           body = JSON.stringify({
             contents: [
               { role: 'user', parts: [{ text: `${systemMessageContent}\n\n${prompt}` }] }
@@ -370,9 +373,11 @@
         } else if (provider === 'gemini') {
             textOut = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'Gemini 輸出內容為空，可能被安全過濾。';
             // 檢查是否被安全過濾
-            if (!textOut && data?.promptFeedback?.safetyRatings) {
-                 const filter = data.candidates?.[0]?.finishReason;
-                 throw new Error(`Gemini 輸出被過濾 (${filter || 'Safety Filter'})`);
+            if (!textOut && data?.candidates?.[0]?.finishReason === 'SAFETY') {
+                 throw new Error(`Gemini 輸出被內容安全過濾 (SAFETY)`);
+            }
+            if (!textOut && data?.error) {
+                 throw new Error(`Gemini API 錯誤: ${data.error.message}`);
             }
         }
         return textOut;
@@ -390,7 +395,6 @@
 
   // === 任務：腳本提示詞 (使用字串模板) ===
   function buildScriptPrompt(mode, sourceText) {
-    // 系統提示詞部分
     const base = `你是台灣中文內容製作的短影音腳本編劇，請用繁體中文撰寫 Markdown 格式輸出。`;
     let task = '';
     if (mode === 'podcast') task = '請選出 5 段 45–75 秒可一鏡到底的重點片段，附時間碼與重點，內容基於以下原文。';
