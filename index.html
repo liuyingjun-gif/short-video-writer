@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>短影音腳本生成器（使用者輸入金鑰版）</title>
+  <title>短影音腳本生成器（支援多模型）</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -40,19 +40,32 @@
 <body>
   <header class="max-w-4xl mx-auto px-4 py-8">
     <h1 class="text-3xl font-bold mb-2">短影音腳本生成器 🎬</h1>
-    <p class="text-gray-600">此版本讓使用者自行輸入 OpenAI API Key，資料僅儲存在本機瀏覽器。</p>
+    <p class="text-gray-600">此版本支援 OpenAI 及 Gemini API，金鑰僅儲存在本機瀏覽器。</p>
   </header>
 
   <main class="max-w-4xl mx-auto px-4 space-y-6 pb-24">
     <div class="card">
-      <h2 class="text-xl font-semibold mb-3">第一步：輸入你的 OpenAI API Key</h2>
-      <p class="text-sm text-gray-600 mb-3">請貼上你的 API 金鑰（開頭為 <code>sk-</code> 或 <code>sk-proj-</code>）。此金鑰僅會儲存在你的瀏覽器。</p>
-      <div class="flex gap-2 items-center">
-        <input id="userApiKey" type="password" placeholder="sk-xxxxxxxxxxxxxxxx" class="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-400">
-        <button id="btnSaveKey" class="btn btn-ghost">儲存</button>
-        <button id="btnClearKey" class="btn btn-ghost">清除</button>
+      <h2 class="text-xl font-semibold mb-3">第一步：輸入你的 API Key</h2>
+      
+      <div class="mb-4">
+        <label for="openaiApiKey" class="block text-sm font-medium text-gray-700 mb-1">OpenAI API Key (sk-)</label>
+        <div class="flex gap-2 items-center">
+          <input id="openaiApiKey" type="password" placeholder="sk-xxxxxxxxxxxxxxxx" class="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-400">
+          <button id="btnSaveOpenAIKey" class="btn btn-ghost">儲存</button>
+          <button id="btnClearOpenAIKey" class="btn btn-ghost">清除</button>
+        </div>
+        <p id="openaiKeyHint" class="muted mt-1"></p>
       </div>
-      <p id="keyHint" class="muted mt-2"></p>
+
+      <div>
+        <label for="geminiApiKey" class="block text-sm font-medium text-gray-700 mb-1">Gemini API Key (AIza)</label>
+        <div class="flex gap-2 items-center">
+          <input id="geminiApiKey" type="password" placeholder="AIzaSyAxxxxxxxxxxxxxxxxx" class="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-400">
+          <button id="btnSaveGeminiKey" class="btn btn-ghost">儲存</button>
+          <button id="btnClearGeminiKey" class="btn btn-ghost">清除</button>
+        </div>
+        <p id="geminiKeyHint" class="muted mt-1"></p>
+      </div>
     </div>
 
     <div class="card">
@@ -62,7 +75,7 @@
         <div class="text-gray-700">已輸入：<span id="charCount" class="font-semibold">0</span>／建議範圍內剩餘：<span id="charRemain" class="font-semibold">0</span></div>
       </div>
       <textarea id="inputText" rows="10" placeholder="請貼上逐字稿或文章內容...（注意：長文可能超出模型單次處理限制）" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-400"></textarea>
-      <p class="muted mt-2">提示：若內容過長，請自行精簡，以避免超出模型的 Token 限制導致生成失敗。</p>
+      <p class="muted mt-2">提示：此版本不再有自動摘要功能。若內容過長，請自行精簡，以避免超出模型的 Token 限制導致生成失敗。</p>
     </div>
 
     <div class="card">
@@ -85,14 +98,21 @@
       <div class="flex flex-wrap items-center gap-4">
         <label class="text-sm text-gray-700">模型：</label>
         <select id="modelSelect" class="p-2 border border-gray-300 rounded-lg text-sm">
-          <option value="gpt-4o-mini" selected>gpt-4o-mini（建議、高CP值）</option>
-          <option value="gpt-4o">gpt-4o（高階推理）</option>
-          <option value="gpt-3.5-turbo">gpt-3.5-turbo（速度快、低成本）</option>
+          <optgroup label="OpenAI (需要 sk- Key)">
+            <option value="openai:gpt-4o-mini" selected>GPT-4o mini（建議）</option>
+            <option value="openai:gpt-4o">GPT-4o（高階推理）</option>
+            <option value="openai:gpt-3.5-turbo">GPT-3.5 Turbo（低成本）</option>
+          </optgroup>
+          <optgroup label="Google (需要 AIza Key)">
+            <option value="gemini:gemini-2.5-flash">Gemini 2.5 Flash（高CP值、快速）</option>
+            <option value="gemini:gemini-2.5-pro">Gemini 2.5 Pro（進階推理）</option>
+          </optgroup>
         </select>
         <label class="flex items-center gap-2 text-sm ml-4 text-gray-500">
+            <span>已移除「先摘要」功能，請自行精簡內容。</span>
         </label>
       </div>
-      <p class="muted mt-2">本工具使用 <code>/v1/chat/completions</code> 端點。</p>
+      <p class="muted mt-2">OpenAI 使用 <code>/v1/chat/completions</code>；Gemini 使用 <code>/v1beta/models/...:generateContent</code> 端點。</p>
     </div>
 
     <div class="card">
@@ -107,7 +127,7 @@
         <button id="btnCopy" class="btn btn-ghost">複製</button>
         <button id="btnDownload" class="btn btn-ghost">下載 .txt</button>
       </div>
-      <pre id="output" class="code">請輸入 API Key 並貼上文章以開始生成。</pre>
+      <pre id="output" class="code">請輸入至少一個 API Key 並貼上文章以開始生成。</pre>
     </div>
   </main>
 
@@ -116,19 +136,27 @@
   const INPUT_CHAR_LIMIT = 10000; 
   const USE_TIMEOUT_MS = 120_000; // 2分鐘超時
 
-  // === 狀態儲存 ===
-  const KEY_STORAGE = 'user_api_key';
+  // === 狀態儲存鍵值 ===
+  const KEY_OPENAI = 'user_openai_key';
+  const KEY_GEMINI = 'user_gemini_key';
   const MASK = '********';
 
   // === DOM 元素引用 ===
   const el = id => document.getElementById(id);
-  const keyInput = el('userApiKey');
-  const saveBtn = el('btnSaveKey');
-  const clearBtn = el('btnClearKey');
+  
+  const openaiKeyInput = el('openaiApiKey');
+  const btnSaveOpenAIKey = el('btnSaveOpenAIKey');
+  const btnClearOpenAIKey = el('btnClearOpenAIKey');
+  const openaiKeyHint = el('openaiKeyHint');
+
+  const geminiKeyInput = el('geminiApiKey');
+  const btnSaveGeminiKey = el('btnSaveGeminiKey');
+  const btnClearGeminiKey = el('btnClearGeminiKey');
+  const geminiKeyHint = el('geminiKeyHint');
+  
   const generateBtn = el('btnGenerate');
   const output = el('output');
   const sysMsg = el('sysMsg');
-  const keyHint = el('keyHint');
   const modelSelect = el('modelSelect');
   const inputText = el('inputText');
   const charLimit = el('charLimit');
@@ -138,12 +166,28 @@
   const controlElements = [generateBtn, modelSelect, inputText, ...modeRadios];
 
   // === 狀態初始化 ===
-  let userApiKey = localStorage.getItem(KEY_STORAGE) || '';
-  if (userApiKey) {
-    keyInput.value = MASK;
-    keyHint.textContent = `目前已儲存金鑰：sk-****${userApiKey.slice(-4)}（僅存在瀏覽器）`;
-    output.textContent = '已偵測到金鑰，請貼上文章並點擊「確認生成」。';
+  let userOpenAIKey = localStorage.getItem(KEY_OPENAI) || '';
+  let userGeminiKey = localStorage.getItem(KEY_GEMINI) || '';
+
+  function loadKeys() {
+    if (userOpenAIKey) {
+      openaiKeyInput.value = MASK;
+      openaiKeyHint.textContent = `✅ 已儲存 OpenAI Key：sk-****${userOpenAIKey.slice(-4)}`;
+    } else {
+      openaiKeyInput.value = '';
+      openaiKeyHint.textContent = '請輸入 OpenAI Key';
+    }
+
+    if (userGeminiKey) {
+      geminiKeyInput.value = MASK;
+      geminiKeyHint.textContent = `✅ 已儲存 Gemini Key：AIza****${userGeminiKey.slice(-4)}`;
+    } else {
+      geminiKeyInput.value = '';
+      geminiKeyHint.textContent = '請輸入 Gemini Key';
+    }
   }
+
+  loadKeys();
   charLimit.textContent = INPUT_CHAR_LIMIT.toLocaleString();
   updateCharCounter();
   updateGenerateButtonState();
@@ -164,92 +208,145 @@
     updateGenerateButtonState();
   }
   inputText.addEventListener('input', updateCharCounter);
+  modelSelect.addEventListener('change', updateGenerateButtonState); // 模型變更時檢查是否有 Key
   
   function updateGenerateButtonState() {
-    const hasKey = Boolean(userApiKey);
+    const [provider, modelName] = modelSelect.value.split(':');
     const hasInput = inputText.value.trim().length > 0;
+    
+    let hasKey = false;
+    if (provider === 'openai') {
+      hasKey = Boolean(userOpenAIKey);
+    } else if (provider === 'gemini') {
+      hasKey = Boolean(userGeminiKey);
+    }
+
     generateBtn.disabled = !(hasKey && hasInput);
+
+    if (!hasKey) {
+      sysMsg.textContent = `請先儲存有效的 ${provider.toUpperCase()} API Key。`;
+    } else {
+      sysMsg.textContent = '已就緒，點擊確認生成。';
+    }
   }
 
   function setControlsDisabled(disabled) {
     controlElements.forEach(el => el.disabled = disabled);
-    keyInput.disabled = disabled; 
-    saveBtn.disabled = disabled;
-    clearBtn.disabled = disabled;
+    openaiKeyInput.disabled = disabled; 
+    btnSaveOpenAIKey.disabled = disabled;
+    btnClearOpenAIKey.disabled = disabled;
+    geminiKeyInput.disabled = disabled; 
+    btnSaveGeminiKey.disabled = disabled;
+    btnClearGeminiKey.disabled = disabled;
   }
 
-  // === 
-  // === API Key 儲存邏輯 (支援 sk- 和 sk-proj-) ===
-  // ===
-  saveBtn.addEventListener('click', () => {
-    const val = keyInput.value.trim();
-    
-    if (val === MASK && userApiKey) {
-        keyHint.textContent = `✅ 金鑰未變更：sk-****${userApiKey.slice(-4)}（已儲存）`;
+  // === Key 處理邏輯 (OpenAI) ===
+  btnSaveOpenAIKey.addEventListener('click', () => {
+    const val = openaiKeyInput.value.trim();
+    if (val === MASK && userOpenAIKey) {
+        openaiKeyHint.textContent = `✅ 金鑰未變更：sk-****${userOpenAIKey.slice(-4)}（已儲存）`;
         return; 
     }
-    
     // 支援 sk- 或 sk-proj- 開頭，並允許字母、數字、下劃線、連字符
     const API_KEY_REGEX = /^sk-(proj-)?[a-zA-Z0-9_-]{40,}$/;
 
     if (!API_KEY_REGEX.test(val)) {
-      keyHint.innerHTML = '<span class="warn">請檢查 API Key 格式是否正確（必須以 sk- 或 sk-proj- 開頭），儲存失敗。</span>';
+      openaiKeyHint.innerHTML = '<span class="warn">格式錯誤（必須以 sk- 或 sk-proj- 開頭，且長度足夠）。</span>';
       return;
     }
-    
-    // 儲存成功
-    localStorage.setItem(KEY_STORAGE, val);
-    userApiKey = val;
-    keyInput.value = MASK;
-    keyHint.textContent = `✅ API Key 已儲存於瀏覽器：sk-****${userApiKey.slice(-4)}`;
+    localStorage.setItem(KEY_OPENAI, val);
+    userOpenAIKey = val;
+    loadKeys(); // 重新載入 Key 狀態
+    updateGenerateButtonState();
+  });
+
+  btnClearOpenAIKey.addEventListener('click', () => {
+    localStorage.removeItem(KEY_OPENAI);
+    userOpenAIKey = '';
+    loadKeys();
+    updateGenerateButtonState();
+  });
+  
+  // === Key 處理邏輯 (Gemini) ===
+  btnSaveGeminiKey.addEventListener('click', () => {
+    const val = geminiKeyInput.value.trim();
+    if (val === MASK && userGeminiKey) {
+        geminiKeyHint.textContent = `✅ 金鑰未變更：AIza****${userGeminiKey.slice(-4)}（已儲存）`;
+        return; 
+    }
+    // 檢查是否以 AIzaSy 開頭
+    const API_KEY_REGEX = /^AIzaSy[a-zA-Z0-9_-]{35,}$/; 
+
+    if (!API_KEY_REGEX.test(val)) {
+      geminiKeyHint.innerHTML = '<span class="warn">格式錯誤（必須以 AIzaSy 開頭，且長度足夠）。</span>';
+      return;
+    }
+    localStorage.setItem(KEY_GEMINI, val);
+    userGeminiKey = val;
+    loadKeys(); // 重新載入 Key 狀態
+    updateGenerateButtonState();
+  });
+
+  btnClearGeminiKey.addEventListener('click', () => {
+    localStorage.removeItem(KEY_GEMINI);
+    userGeminiKey = '';
+    loadKeys();
     updateGenerateButtonState();
   });
 
 
-  clearBtn.addEventListener('click', () => {
-    localStorage.removeItem(KEY_STORAGE);
-    userApiKey = '';
-    keyInput.value = '';
-    keyHint.textContent = '🔒 已清除 API Key，請重新輸入';
-    output.textContent = '請輸入 API Key 並貼上文章以開始生成。';
-    updateGenerateButtonState();
-  });
-
-  // === OpenAI 呼叫（/v1/chat/completions） ===
-  async function callChatCompletions({ model, prompt, signal }) {
+  // === 核心 API 呼叫函式 (支援 OpenAI/Gemini) ===
+  async function callChatCompletions({ provider, modelName, prompt, signal }) {
     const MAX_RETRY = 3;
     let attempt = 0;
     let lastErr;
-    
+    let apiKey = provider === 'openai' ? userOpenAIKey : userGeminiKey;
     let systemMessageContent = '你是一個有幫助、專業的助理。';
     
+    // 從提示詞中解析 System Message
     const promptLines = prompt.split('\n');
     if (promptLines[0].startsWith('你是')) {
         systemMessageContent = promptLines[0];
         prompt = promptLines.slice(1).join('\n').trim(); 
     }
     
-    const messages = [
-      { role: 'system', content: systemMessageContent },
-      { role: 'user', content: prompt }
-    ];
-
     while (attempt < MAX_RETRY) {
       try {
-        const res = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
+        let url, headers, body;
+
+        if (provider === 'openai') {
+          url = 'https://api.openai.com/v1/chat/completions';
+          headers = {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${userApiKey}`, 
-          },
-          body: JSON.stringify({
-            model,
-            messages, 
+            'Authorization': `Bearer ${apiKey}`,
+          };
+          body = JSON.stringify({
+            model: modelName,
+            messages: [
+              { role: 'system', content: systemMessageContent },
+              { role: 'user', content: prompt }
+            ], 
             temperature: 0.7,
             stream: false,
-          }),
-          signal
-        });
+          });
+
+        } else if (provider === 'gemini') {
+          // Gemini API 呼叫結構
+          url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+          headers = {
+            'Content-Type': 'application/json',
+          };
+          body = JSON.stringify({
+            contents: [
+              { role: 'user', parts: [{ text: `${systemMessageContent}\n\n${prompt}` }] }
+            ],
+            config: {
+                temperature: 0.7,
+            }
+          });
+        }
+        
+        const res = await fetch(url, { method: 'POST', headers, body, signal });
 
         const raw = await res.text();
         let data;
@@ -267,8 +364,19 @@
           throw new Error(`HTTP ${res.status} ${res.statusText}｜${msg}`);
         }
 
-        const textOut = data?.choices?.[0]?.message?.content || ''; 
+        let textOut = '';
+        if (provider === 'openai') {
+            textOut = data?.choices?.[0]?.message?.content || ''; 
+        } else if (provider === 'gemini') {
+            textOut = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'Gemini 輸出內容為空，可能被安全過濾。';
+            // 檢查是否被安全過濾
+            if (!textOut && data?.promptFeedback?.safetyRatings) {
+                 const filter = data.candidates?.[0]?.finishReason;
+                 throw new Error(`Gemini 輸出被過濾 (${filter || 'Safety Filter'})`);
+            }
+        }
         return textOut;
+
       } catch (e) {
         if (e.name === 'AbortError') throw e;
         lastErr = e;
@@ -282,6 +390,7 @@
 
   // === 任務：腳本提示詞 (使用字串模板) ===
   function buildScriptPrompt(mode, sourceText) {
+    // 系統提示詞部分
     const base = `你是台灣中文內容製作的短影音腳本編劇，請用繁體中文撰寫 Markdown 格式輸出。`;
     let task = '';
     if (mode === 'podcast') task = '請選出 5 段 45–75 秒可一鏡到底的重點片段，附時間碼與重點，內容基於以下原文。';
@@ -295,22 +404,24 @@ ${task}
 ${sourceText}`;
   }
 
-  // === 
-  // === 生成主流程 (包含優化的 429 錯誤提示) ===
-  // ===
+  // === 生成主流程 ===
   generateBtn.addEventListener('click', async () => {
     const raw = inputText.value.trim();
     if (!raw) {
         sysMsg.textContent = '請先貼上內容！';
         return;
     }
-    if (!userApiKey) {
-        sysMsg.textContent = '請先輸入你的 OpenAI API Key！';
+    
+    const [provider, modelName] = modelSelect.value.split(':');
+    let apiKeyUsed = provider === 'openai' ? userOpenAIKey : userGeminiKey;
+    
+    if (!apiKeyUsed) {
+        sysMsg.textContent = `請先輸入你的 ${provider.toUpperCase()} API Key！`;
         return;
     }
     
     if (raw.length > INPUT_CHAR_LIMIT) {
-        if (!confirm(`警告：您貼上的內容 (${raw.length} 字) 已超出建議限制 (${INPUT_CHAR_LIMIT} 字)。\n\n由於已移除自動摘要功能，直接傳送給模型可能會因為 Token 數超限而失敗。確定要繼續嗎？`)) {
+        if (!confirm(`警告：您貼上的內容 (${raw.length} 字) 已超出建議限制 (${INPUT_CHAR_LIMIT} 字)。\n\n直接傳送給模型可能會因為 Token 數超限而失敗。確定要繼續嗎？`)) {
             sysMsg.textContent = '生成已取消。請精簡內容後再試。';
             return;
         }
@@ -318,17 +429,16 @@ ${sourceText}`;
 
     setControlsDisabled(true); 
     output.textContent = '⏳ 正在生成中... (請耐心等待)';
-    sysMsg.textContent = 'AI 正在撰寫腳本…';
+    sysMsg.textContent = `使用 ${provider.toUpperCase()} (Model: ${modelName}) 撰寫腳本…`;
     
     const mode = document.querySelector('input[name="mode"]:checked')?.value || 'topic';
-    const model = modelSelect.value;
     
     const ac = new AbortController();
     const timeout = setTimeout(() => ac.abort(), USE_TIMEOUT_MS);
 
     try {
       const scriptPrompt = buildScriptPrompt(mode, raw);
-      const result = await callChatCompletions({ model, prompt: scriptPrompt, signal: ac.signal });
+      const result = await callChatCompletions({ provider, modelName, prompt: scriptPrompt, signal: ac.signal });
 
       output.textContent = result;
       sysMsg.textContent = '✅ 已完成';
@@ -339,13 +449,12 @@ ${sourceText}`;
         sysMsg.textContent = '請求已超時（網路連線、內容過長或模型延遲）。';
       
       } else if (err.message.includes('HTTP 401')) {
-        output.textContent = `❌ 錯誤：API Key 無效或授權失敗 (HTTP 401)。`;
-        sysMsg.textContent = '請檢查您的 API Key 是否正確且有效。';
+        output.textContent = `❌ 錯誤：${provider.toUpperCase()} Key 無效或授權失敗 (HTTP 401)。`;
+        sysMsg.textContent = `請檢查您的 ${provider.toUpperCase()} API Key 是否正確且有效。`;
       
       } else if (err.message.includes('HTTP 429')) {
-        // **針對 429 錯誤提供更精確的提示**
         output.textContent = `❌ 錯誤：${err?.message || 'HTTP 429'}`;
-        sysMsg.textContent = '錯誤：已達 API 速率或額度上限 (Quota)。請登入 OpenAI 檢查您的帳單與付款設定。';
+        sysMsg.textContent = `錯誤：已達 ${provider.toUpperCase()} API 速率或額度上限 (Quota)。請登入該平台檢查您的帳單與付款設定。`;
       
       } else if (err.message.includes('400') && err.message.includes('maximum context length')) {
         output.textContent = `❌ 錯誤：輸入內容過長，超過模型最大 Token 限制。`;
@@ -353,7 +462,7 @@ ${sourceText}`;
       
       } else {
         output.textContent = `❌ 錯誤：${err?.message || err.toString()}`;
-        sysMsg.textContent = '發生未知錯誤（請檢查主控台 Console）。';
+        sysMsg.textContent = `發生錯誤（請檢查 Key、用量或主控台）。`;
       }
       console.error(err);
     
