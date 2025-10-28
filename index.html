@@ -16,6 +16,7 @@
     .btn-ghost { background: #f3f4f6; color: #111827; }
     .code { background: #0f172a; color: #e2e8f0; border-radius: .75rem; padding: 1rem; overflow: auto; white-space: pre-wrap; }
     .muted { color:#6b7280; font-size:12px }
+    .warn { color:#b45309 }
   </style>
 </head>
 <body>
@@ -37,14 +38,18 @@
       <p id="keyHint" class="muted mt-2"></p>
     </div>
 
-    <!-- 文字輸入區 -->
+    <!-- 文字輸入區（含字數限制顯示） -->
     <div class="card">
-      <h2 class="text-xl font-semibold mb-3">第二步：貼上文章或逐字稿</h2>
-      <textarea id="inputText" rows="10" placeholder="請貼上逐字稿或文章內容..." class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-400"></textarea>
-      <p class="muted mt-2">提示：若內容很長，建議分段貼上以避免超過 token 限制。</p>
+      <h2 class="text-xl font-semibold mb-2">第二步：貼上文章或逐字稿</h2>
+      <div class="flex items-center justify-between mb-2">
+        <div class="text-sm text-gray-700">目前字數上限：<span id="charLimit" class="font-semibold"></span> 字</div>
+        <div class="text-sm text-gray-700">已輸入：<span id="charCount" class="font-semibold">0</span>／剩餘：<span id="charRemain" class="font-semibold">0</span></div>
+      </div>
+      <textarea id="inputText" rows="10" placeholder="請貼上逐字稿或文章內容...（過長會先自動摘要）" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-400"></textarea>
+      <p class="muted mt-2">提示：若內容遠超過上限，系統將分段摘要後再生成，確保不超過模型的 token 限制。</p>
     </div>
 
-    <!-- 型態選擇 + 模型選擇 -->
+    <!-- 型態選擇 + 模型選擇 + 流程開關 -->
     <div class="card">
       <h2 class="text-xl font-semibold mb-3">第三步：選擇影片型態與模型</h2>
       <div class="space-y-2 mb-4">
@@ -66,16 +71,16 @@
         <label class="text-sm text-gray-700">模型：</label>
         <select id="modelSelect" class="p-2 border border-gray-300 rounded-lg">
           <option value="gpt-4o-mini" selected>gpt-4o-mini（建議）</option>
-          <option value="gpt-5.1-mini">gpt-5.1-mini</option>
+          <option value="o4-mini">o4-mini（強化推理）</option>
+          <option value="o3">o3（高階推理）</option>
           <option value="gpt-4.1-mini">gpt-4.1-mini</option>
         </select>
-        <label class="text-sm text-gray-700 ml-4">端點：</label>
-        <select id="endpointSelect" class="p-2 border border-gray-300 rounded-lg">
-          <option value="responses" selected>/v1/responses（建議）</option>
-          <option value="chat">/v1/chat/completions（相容舊版）</option>
-        </select>
+        <label class="flex items-center gap-2 ml-4 text-sm">
+          <input type="checkbox" id="chkSummarizeFirst" checked>
+          <span>先摘要，再生成（建議開啟）</span>
+        </label>
       </div>
-      <p class="muted mt-2">若遇到 404/405/`model_not_found`，請改用另一個端點或模型。</p>
+      <p class="muted mt-2">本工具預設使用 <code>/v1/responses</code> 端點（新版 Responses API）。一般使用者不需理解端點細節。</p>
     </div>
 
     <!-- 生成按鈕 -->
@@ -88,7 +93,7 @@
     <!-- 結果輸出 -->
     <div class="card">
       <h2 class="text-xl font-semibold mb-3">結果：</h2>
-      <div class="flex gap-2 mb-3">
+      <div class="flex flex-wrap gap-2 mb-3">
         <button id="btnCopy" class="btn btn-ghost">複製</button>
         <button id="btnDownload" class="btn btn-ghost">下載 .txt</button>
       </div>
@@ -97,12 +102,17 @@
   </main>
 
   <script>
-  // === 設定 ===
+  // === 可調整上限（以「字元」估算，CJK 常接近 token 數量） ===
+  const INPUT_CHAR_LIMIT = 12000; // 顯示的最大建議輸入長度
+  const CHUNK_SIZE = 3000;        // 分段摘要時每段大小
+  const SUMMARY_TARGET_CHARS = 1500; // 單段摘要期望長度
+  const USE_TIMEOUT_MS = 120_000;
+
+  // === 金鑰儲存 ===
   const KEY_STORAGE = 'user_api_key';
   const MASK = '********';
-  const USE_TIMEOUT_MS = 90_000;
 
-  // === 元件 ===
+  // === DOM ===
   const el = id => document.getElementById(id);
   const keyInput = el('userApiKey');
   const saveBtn = el('btnSaveKey');
@@ -112,7 +122,11 @@
   const sysMsg = el('sysMsg');
   const keyHint = el('keyHint');
   const modelSelect = el('modelSelect');
-  const endpointSelect = el('endpointSelect');
+  const chkSummarizeFirst = el('chkSummarizeFirst');
+  const inputText = el('inputText');
+  const charLimit = el('charLimit');
+  const charCount = el('charCount');
+  const charRemain = el('charRemain');
 
   // === 狀態 ===
   let userApiKey = localStorage.getItem(KEY_STORAGE) || '';
@@ -120,23 +134,34 @@
     keyInput.value = MASK;
     keyHint.textContent = `目前已儲存金鑰：sk-****${userApiKey.slice(-4)}（僅存在瀏覽器）`;
   }
+  charLimit.textContent = INPUT_CHAR_LIMIT.toLocaleString();
+  updateCharCounter();
   updateGenerateButtonState();
 
+  // === UI：字數計數 ===
+  function updateCharCounter() {
+    const len = inputText.value.length;
+    charCount.textContent = len.toLocaleString();
+    const remain = Math.max(0, INPUT_CHAR_LIMIT - len);
+    charRemain.textContent = remain.toLocaleString();
+    if (len > INPUT_CHAR_LIMIT) {
+      charRemain.classList.add('warn');
+    } else {
+      charRemain.classList.remove('warn');
+    }
+  }
+  inputText.addEventListener('input', updateCharCounter);
+
   function updateGenerateButtonState() {
-    generateBtn.disabled = !Boolean(userApiKey);
+    const ok = Boolean(userApiKey);
+    generateBtn.disabled = !ok;
   }
 
   // === 金鑰操作 ===
   saveBtn.addEventListener('click', () => {
     const val = keyInput.value.trim();
-    if (val === MASK) {
-      alert('這是遮罩文字，請重新貼上真正的 API Key（sk- 開頭）。');
-      return;
-    }
-    if (!/^sk-[A-Za-z0-9]{20,}/.test(val)) {
-      alert('請輸入正確格式的 API Key（開頭為 sk-）');
-      return;
-    }
+    if (val === MASK) return alert('這是遮罩文字，請貼上真正的 API Key（sk- 開頭）。');
+    if (!/^sk-[A-Za-z0-9]{20,}/.test(val)) return alert('請輸入正確格式的 API Key（開頭為 sk-）');
     localStorage.setItem(KEY_STORAGE, val);
     userApiKey = val;
     keyInput.value = MASK;
@@ -154,95 +179,115 @@
     updateGenerateButtonState();
   });
 
-  // === 工具 ===
-  function buildPrompt(mode, text) {
-    const base = `你是台灣中文內容製作的短影音腳本編劇，請用繁體中文撰寫 Markdown 格式輸出。`;
-    let task = '';
-    if (mode === 'podcast') task = '請選出 5 段 45–75 秒可一鏡到底的重點片段，附時間碼與重點';
-    else if (mode === 'topic') task = '請寫出 60 秒議題型旁白腳本，附建議時間與畫面';
-    else task = '請寫出 60 秒人物故事型腳本，包含原音摘錄、大意與建議畫面';
-    return `${base}\n${task}\n以下是全文：\n${text}`;
-  }
-
-  async function safeParseJson(text) {
-    try { return JSON.parse(text); } catch { return null; }
-  }
-
-  async function callOpenAI({ model, endpoint, prompt, signal }) {
-    const url = endpoint === 'responses'
-      ? 'https://api.openai.com/v1/responses'
-      : 'https://api.openai.com/v1/chat/completions';
-
-    const body = endpoint === 'responses'
-      ? { model, input: prompt, temperature: 0.7 }
-      : {
-          model,
-          messages: [
-            { role: 'system', content: 'You are a helpful assistant that writes Traditional Chinese short-video scripts in Markdown.' },
-            { role: 'user', content: prompt }
-          ],
-          temperature: 0.7
-        };
-
-    const res = await fetch(url, {
+  // === OpenAI 呼叫（使用 Responses API） ===
+  async function callResponsesAPI({ model, input, signal }) {
+    const res = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${userApiKey}`,
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ model, input, temperature: 0.7 }),
       signal
     });
 
     const raw = await res.text();
-    const data = await safeParseJson(raw);
+    let data;
+    try { data = JSON.parse(raw); } catch { data = null; }
 
     if (!res.ok) {
       const msg = data?.error?.message || raw || `HTTP ${res.status}`;
       throw new Error(`HTTP ${res.status} ${res.statusText}｜${msg}`);
     }
 
-    // Responses API
-    if (endpoint === 'responses') {
-      // 文字輸出可能在 output_text 或 choices[0].message?.content
-      const textOut = data?.output_text
-        || data?.content?.[0]?.text
-        || data?.choices?.[0]?.message?.content
-        || '(無內容)';
-      return textOut;
+    const textOut = data?.output_text
+      || data?.content?.[0]?.text
+      || data?.choices?.[0]?.message?.content
+      || '';
+    return textOut;
+  }
+
+  // === 任務：摘要 ===
+  function summaryPrompt(text, targetChars) {
+    return `你是專業中文編輯，請將以下文本重點濃縮為不超過 ${targetChars} 字的條列式摘要，保留關鍵事實、人物、數據與脈絡，使用繁體中文。
+\n【原文】\n${text}`;
+  }
+
+  // === 任務：腳本 ===
+  function buildScriptPrompt(mode, sourceText) {
+    const base = `你是台灣中文內容製作的短影音腳本編劇，請用繁體中文撰寫 Markdown 格式輸出。`;
+    let task = '';
+    if (mode === 'podcast') task = '請選出 5 段 45–75 秒可一鏡到底的重點片段，附時間碼與重點';
+    else if (mode === 'topic') task = '請寫出 60 秒議題型旁白腳本，附建議時間與畫面';
+    else task = '請寫出 60 秒人物故事型腳本，包含原音摘錄、大意與建議畫面';
+    return `${base}\n${task}\n以下為摘要後的重點內容：\n${sourceText}`;
+  }
+
+  // === 工具：分段 ===
+  function chunkText(text, size) {
+    const chunks = [];
+    for (let i = 0; i < text.length; i += size) {
+      chunks.push(text.slice(i, i + size));
+    }
+    return chunks;
+  }
+
+  async function summarizeLongTextIfNeeded(text, model, signal) {
+    if (!chkSummarizeFirst.checked) return text; // 直接用原文
+
+    if (text.length <= INPUT_CHAR_LIMIT) {
+      // 仍先做一次整體摘要，降低總 token
+      return await callResponsesAPI({ model, input: summaryPrompt(text, SUMMARY_TARGET_CHARS * 2), signal });
     }
 
-    // Chat Completions
-    return data?.choices?.[0]?.message?.content || '(無內容)';
+    // 超過上限：分段摘要 → 合併摘要
+    const parts = chunkText(text, CHUNK_SIZE);
+    let partials = [];
+    for (let i = 0; i < parts.length; i++) {
+      const p = parts[i];
+      sysMsg.textContent = `摘要第 ${i+1}/${parts.length} 段…`;
+      const s = await callResponsesAPI({ model, input: summaryPrompt(p, SUMMARY_TARGET_CHARS), signal });
+      partials.push(`【第${i+1}段摘要】\n${s}`);
+    }
+
+    const merged = partials.join('\n\n');
+    sysMsg.textContent = '合併整體摘要…';
+    const finalSummary = await callResponsesAPI({ model, input: summaryPrompt(merged, SUMMARY_TARGET_CHARS * 2), signal });
+    return finalSummary;
   }
 
   // === 生成 ===
   generateBtn.addEventListener('click', async () => {
-    const text = document.getElementById('inputText').value.trim();
-    if (!text) return alert('請先貼上內容');
+    const raw = inputText.value.trim();
+    if (!raw) return alert('請先貼上內容');
     if (!userApiKey) return alert('請先輸入你的 OpenAI API Key');
 
     const mode = document.querySelector('input[name="mode"]:checked')?.value || 'topic';
-    const prompt = buildPrompt(mode, text);
     const model = modelSelect.value;
-    const endpoint = endpointSelect.value;
 
     output.textContent = '⏳ 正在生成中...';
-    sysMsg.textContent = '請稍候，AI 正在撰寫腳本';
+    sysMsg.textContent = '請稍候，AI 正在摘要與撰寫腳本';
 
     const ac = new AbortController();
-    const t = setTimeout(() => ac.abort(), USE_TIMEOUT_MS);
+    const timeout = setTimeout(() => ac.abort(), USE_TIMEOUT_MS);
 
     try {
-      const result = await callOpenAI({ model, endpoint, prompt, signal: ac.signal });
+      // 1) 先摘要
+      const summary = await summarizeLongTextIfNeeded(raw, model, ac.signal);
+
+      // 2) 再依模式生成腳本
+      sysMsg.textContent = '根據摘要生成腳本…';
+      const scriptPrompt = buildScriptPrompt(mode, summary || raw);
+      const result = await callResponsesAPI({ model, input: scriptPrompt, signal: ac.signal });
+
       output.textContent = result;
       sysMsg.textContent = '✅ 已完成';
     } catch (err) {
       output.textContent = '❌ 錯誤：' + (err?.message || err);
-      sysMsg.textContent = '發生錯誤（請查看瀏覽器主控台 Console 與 Network）';
+      sysMsg.textContent = '發生錯誤（請查看瀏覽器 Console 與 Network）';
       console.error(err);
     } finally {
-      clearTimeout(t);
+      clearTimeout(timeout);
     }
   });
 
