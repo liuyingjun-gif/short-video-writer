@@ -42,8 +42,6 @@
       padding: 1.5rem;  /* 增加內邊距 */
       overflow: auto; 
       font-size: 0.875rem;
-      /* 【修改 2/6】: pre-wrap 會保留空白，改用 div 後不需要 */
-      /* white-space: pre-wrap; */ 
     }
     .muted { color:#6b7280; font-size:12px }
     .warn { color:#dc2626; font-weight: 700; } 
@@ -59,7 +57,7 @@
         box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.2);
     }
     
-    /* 【新增 3/6】: 表格樣式，使其在 .code (深色背景) 中可讀 */
+    /* 表格樣式，使其在 .code (深色背景) 中可讀 */
     .markdown-output table {
         width: 100%;
         border-collapse: collapse;
@@ -98,22 +96,28 @@
     <div class="card">
       <h2 class="text-2xl font-semibold mb-4 text-gray-800">第一步：輸入你的 API Key</h2>
       
-      <div class="mb-5">
+      <p class="text-gray-600 mb-6">請填寫至少一個 API Key。</p>
+
+      <div>
         <label for="openaiApiKey" class="block text-sm font-medium text-gray-700 mb-2">OpenAI API Key (sk-)</label>
-        <div class="flex gap-3 items-center">
+        <div class="flex flex-col sm:flex-row gap-3 sm:items-center">
           <input id="openaiApiKey" type="password" placeholder="sk-xxxxxxxxxxxxxxxx" class="flex-1 input-style">
-          <button id="btnSaveOpenAIKey" class="btn btn-ghost">儲存</button>
-          <button id="btnClearOpenAIKey" class="btn btn-ghost">清除</button>
+          <div class="flex gap-3">
+            <button id="btnSaveOpenAIKey" class="btn btn-ghost flex-1 sm:flex-auto">儲存</button>
+            <button id="btnClearOpenAIKey" class="btn btn-ghost flex-1 sm:flex-auto">清除</button>
+          </div>
         </div>
         <p id="openaiKeyHint" class="muted mt-2"></p>
       </div>
 
       <div class="pt-5 mt-5 border-t border-gray-200">
         <label for="geminiApiKey" class="block text-sm font-medium text-gray-700 mb-2">Gemini API Key (AIza)</label>
-        <div class="flex gap-3 items-center">
+        <div class="flex flex-col sm:flex-row gap-3 sm:items-center">
           <input id="geminiApiKey" type="password" placeholder="AIzaSyAxxxxxxxxxxxxxxxxx" class="flex-1 input-style">
-          <button id="btnSaveGeminiKey" class="btn btn-ghost">儲存</button>
-          <button id="btnClearGeminiKey" class="btn btn-ghost">清除</button>
+          <div class="flex gap-3">
+            <button id="btnSaveGeminiKey" class="btn btn-ghost flex-1 sm:flex-auto">儲存</button>
+            <button id="btnClearGeminiKey" class="btn btn-ghost flex-1 sm:flex-auto">清除</button>
+          </div>
         </div>
         <p id="geminiKeyHint" class="muted mt-2"></p>
       </div>
@@ -123,7 +127,7 @@
       <h2 class="text-2xl font-semibold mb-4 text-gray-800">第二步：貼上文章或逐字稿</h2>
       <div class="flex items-center justify-between mb-3 text-sm">
         <div class="text-gray-700">建議字數：<span id="charLimit" class="font-semibold text-sky-600"></span> 字</div>
-        <div class="text-gray-700">已輸入：<span id="charCount" class="font-semibold text-sky-600">0</span>／建議範圍內剩餘：<span id="charRemain" class="font-semibold text-sky-600">0</span></div>
+        <div class="text-gray-700">已輸入 (不含空行)：<span id="charCount" class="font-semibold text-sky-600">0</span>／建議範圍內剩餘：<span id="charRemain" class="font-semibold text-sky-600">0</span></div>
       </div>
       <textarea id="inputText" rows="10" placeholder="請貼上逐字稿或文章內容...（注意：長文可能超出模型單次處理限制）" class="w-full input-style"></textarea>
       <p class="muted mt-2">提示：若內容過長，請自行精簡，以避免超出模型的 Token 限制導致生成失敗。</p>
@@ -161,7 +165,7 @@
           </optgroup>
         </select>
       </div>
-      <p class="muted mt-3">OpenAI 使用 <code>/v1/chat/completions</code>；Gemini 使用 <code>/v1beta/models/...:generateContent</code> 端點。</p>
+      <p class="muted mt-3">請選擇與您所填寫 API Key 相符的模型。</p>
     </div>
 
     <div class="card">
@@ -172,18 +176,20 @@
 
     <div class="card">
       <h2 class="text-2xl font-semibold mb-4 text-gray-800">結果：</h2>
-      <div class="flex flex-wrap gap-3 mb-4">
+      <div class="flex flex-col sm:flex-row gap-3 mb-4">
         <button id="btnCopy" class="btn btn-ghost">複製結果</button>
         <button id="btnDownload" class="btn btn-ghost">下載 .txt</button>
       </div>
+      <p id="copyMsg" class="text-sm text-gray-600 mb-4 h-5"></p>
+      
       <div id="output" class="code markdown-output" style="min-height: 100px; white-space: normal;">請輸入至少一個 API Key 並貼上文章以開始生成。</div>
     </div>
   </main>
 
   <script>
   // === 配置參數 ===
-  // 【修改 5/6】: 字數限制改為 20000
-  const INPUT_CHAR_LIMIT = 20000; 
+  // 字數限制改為 30000
+  const INPUT_CHAR_LIMIT = 30000; 
   const USE_TIMEOUT_MS = 120_000; // 2分鐘超時
 
   // === 狀態儲存鍵值 ===
@@ -207,6 +213,9 @@
   const generateBtn = el('btnGenerate');
   const output = el('output');
   const sysMsg = el('sysMsg');
+  // 增加 copyMsg 元素引用
+  const copyMsg = el('copyMsg'); 
+  
   const modelSelect = el('modelSelect');
   const inputText = el('inputText');
   const charLimit = el('charLimit');
@@ -241,10 +250,26 @@
   charLimit.textContent = INPUT_CHAR_LIMIT.toLocaleString();
   updateCharCounter();
   updateGenerateButtonState();
+  
+  // === 【新增】結果區提示詞小幫手 ===
+  function showCopyMessage(message, isError = false) {
+    copyMsg.textContent = message;
+    if (isError) {
+        copyMsg.className = 'text-sm text-red-600 mb-4 h-5';
+    } else if (message === '') { // 清除
+        copyMsg.className = 'text-sm text-gray-600 mb-4 h-5';
+    } else { // 成功
+        copyMsg.className = 'text-sm text-green-600 mb-4 h-5'; 
+    }
+  }
 
   // === UI 控制：字數計數與按鈕狀態 ===
   function updateCharCounter() {
-    const len = inputText.value.length;
+    // 更新字數計算邏輯，移除空行
+    const rawText = inputText.value;
+    const processedText = rawText.replace(/^\s*[\r\n]/gm, ''); // 移除空行
+    const len = processedText.length;
+    
     charCount.textContent = len.toLocaleString();
     const remain = INPUT_CHAR_LIMIT - len;
 
@@ -262,13 +287,14 @@
   
   function updateGenerateButtonState() {
     const [provider, modelName] = modelSelect.value.split(':');
-    const hasInput = inputText.value.trim().length > 0;
+    
+    // 檢查輸入時也使用 "不含空行" 的標準
+    const hasInput = inputText.value.replace(/^\s*[\r\n]/gm, '').trim().length > 0;
     
     let hasKey = false;
     if (provider === 'openai') {
       hasKey = Boolean(userOpenAIKey);
     } 
-    // 檢查 Gemini Key
     else if (provider === 'gemini') {
       hasKey = Boolean(userGeminiKey);
     }
@@ -294,7 +320,6 @@
 
   // === Key 處理邏輯 (OpenAI) ===
   btnSaveOpenAIKey.addEventListener('click', () => {
-    // 關鍵修正：強制去除所有空格和不可見字元
     const rawVal = openaiKeyInput.value;
     const val = rawVal.replace(/\s/g, '').trim(); 
 
@@ -302,9 +327,7 @@
         openaiKeyHint.textContent = `✅ 金鑰未變更：sk-****${userOpenAIKey.slice(-4)}（已儲存）`;
         return; 
     }
-    // 支援 sk- 或 sk-proj- 開頭
     const API_KEY_REGEX = /^sk-(proj-)?[a-zA-Z0-9_-]{40,}$/;
-
     if (!API_KEY_REGEX.test(val)) {
       openaiKeyHint.innerHTML = '<span class="warn">格式錯誤（必須以 sk- 或 sk-proj- 開頭，且長度足夠）。</span>';
       return;
@@ -324,7 +347,6 @@
   
   // === Key 處理邏輯 (Gemini) ===
   btnSaveGeminiKey.addEventListener('click', () => {
-    // 關鍵修正：強制去除所有空格和不可見字元
     const rawVal = geminiKeyInput.value;
     const val = rawVal.replace(/\s/g, '').trim(); 
 
@@ -332,9 +354,7 @@
         geminiKeyHint.textContent = `✅ 金鑰未變更：AIza****${userGeminiKey.slice(-4)}（已儲存）`;
         return; 
     }
-    // 修復 Regex (前次修正): 檢查 AIzaSy 開頭和總長度 (39-51 字元)
     const API_KEY_REGEX = /^AIzaSy[a-zA-Z0-9_-]{33,45}$/; 
-
     if (!API_KEY_REGEX.test(val)) {
       geminiKeyHint.innerHTML = '<span class="warn">格式錯誤（必須以 AIzaSy 開頭，且長度足夠，約 39-49 個字元）。</span>';
       return;
@@ -354,6 +374,7 @@
 
 
   // === 核心 API 呼叫函式 (支援 OpenAI/Gemini) ===
+  // (這部分是上一則回覆中被截斷的)
   async function callChatCompletions({ provider, modelName, prompt, signal }) {
     const MAX_RETRY = 3;
     let attempt = 0;
@@ -389,12 +410,10 @@
           });
 
         } else if (provider === 'gemini') {
-          // Gemini API 呼叫結構
           url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
           headers = {
             'Content-Type': 'application/json',
           };
-          // 【已修正】將 config 改為 generationConfig，解決 HTTP 400 錯誤。
           body = JSON.stringify({
             contents: [
               { role: 'user', parts: [{ text: `${systemMessageContent}\n\n${prompt}` }] }
@@ -406,7 +425,6 @@
         }
         
         const res = await fetch(url, { method: 'POST', headers, body, signal });
-
         const raw = await res.text();
         let data;
         try { data = JSON.parse(raw); } catch { data = null; }
@@ -428,7 +446,6 @@
             textOut = data?.choices?.[0]?.message?.content || ''; 
         } else if (provider === 'gemini') {
             textOut = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'Gemini 輸出內容為空，可能被安全過濾。';
-            // 檢查是否被安全過濾
             if (!textOut && data?.candidates?.[0]?.finishReason === 'SAFETY') {
                  throw new Error(`Gemini 輸出被內容安全過濾 (SAFETY)`);
             }
@@ -451,7 +468,6 @@
 
   // === 任務：腳本提示詞 (使用字串模板) ===
   function buildScriptPrompt(mode, sourceText) {
-    // 【修改 6/6】: 提示詞要求使用 Markdown 表格
     const base = '你是台灣中文內容製作的短影音腳本編劇，請用繁體中文撰寫。請優先使用 Markdown 表格 (table) 格式來組織你的輸出內容。';
     let task = '';
     if (mode === 'podcast') task = '請選出 5 段 45–75 秒可一鏡到底的重點片段，附時間碼與重點，內容基於以下原文。';
@@ -466,8 +482,14 @@ ${sourceText}`;
 
   // === 生成主流程 ===
   generateBtn.addEventListener('click', async () => {
-    const raw = inputText.value.trim();
-    if (!raw) {
+    // 【提示詞位置修改】: 開始生成時，清除舊的複製提示
+    showCopyMessage('', false); 
+  
+    const raw = inputText.value;
+    // 使用不含空行的標準來檢查
+    const processedRaw = raw.replace(/^\s*[\r\n]/gm, '').trim(); 
+    
+    if (!processedRaw) {
         sysMsg.textContent = '請先貼上內容！';
         return;
     }
@@ -480,15 +502,15 @@ ${sourceText}`;
         return;
     }
     
-    if (raw.length > INPUT_CHAR_LIMIT) {
-        if (!confirm(`警告：您貼上的內容 (${raw.length} 字) 已超出建議限制 (${INPUT_CHAR_LIMIT} 字)。\n\n直接傳送給模型可能會因為 Token 數超限而失敗。確定要繼續嗎？`)) {
+    // 使用處理過的長度來比較
+    if (processedRaw.length > INPUT_CHAR_LIMIT) {
+        if (!confirm(`警告：您貼上的內容 (${processedRaw.length} 字) 已超出建議限制 (${INPUT_CHAR_LIMIT} 字)。\n\n直接傳送給模型可能會因為 Token 數超限而失敗。確定要繼續嗎？`)) {
             sysMsg.textContent = '生成已取消。請精簡內容後再試。';
             return;
         }
     }
 
     setControlsDisabled(true); 
-    // 切換為 textContent 避免 XSS
     output.textContent = '⏳ 正在生成中... (請耐心等待)'; 
     sysMsg.textContent = `使用 ${provider.toUpperCase()} (Model: ${modelName}) 撰寫腳本…`;
     
@@ -498,10 +520,10 @@ ${sourceText}`;
     const timeout = setTimeout(() => ac.abort(), USE_TIMEOUT_MS);
 
     try {
-      const scriptPrompt = buildScriptPrompt(mode, raw);
+      // 傳送給 API 時，我們還是傳送包含空行的原始文本
+      const scriptPrompt = buildScriptPrompt(mode, raw.trim()); 
       const result = await callChatCompletions({ provider, modelName, prompt: scriptPrompt, signal: ac.signal });
 
-      // 【重要修改】: 使用 marked.parse 將 Markdown 轉為 HTML
       output.innerHTML = marked.parse(result); 
       sysMsg.textContent = '✅ 已完成 (可直接選取表格貼到 Google Sheets)';
     
@@ -540,17 +562,16 @@ ${sourceText}`;
 
   // === 複製 / 下載 ===
   el('btnCopy').addEventListener('click', async () => {
-    // 【重要修改】: 升級複製功能，優先複製 HTML (富文本)
     const html = output.innerHTML;
     const text = output.textContent; // 備用的純文字
 
     if (!text || text.startsWith('❌ 錯誤') || text.startsWith('請輸入')) {
-        sysMsg.textContent = '請先生成有效的內容。';
+        // 【提示詞位置修改】: 使用 showCopyMessage
+        showCopyMessage('請先生成有效的內容。', true);
         return;
     }
     
     try {
-        // 嘗試寫入 HTML (富文本)
         const blob = new Blob([html], { type: 'text/html' });
         // @ts-ignore
         const item = new ClipboardItem({
@@ -559,25 +580,28 @@ ${sourceText}`;
         });
         // @ts-ignore
         await navigator.clipboard.write([item]);
-        sysMsg.textContent = '✅ 已複製表格 (可貼到 Google Docs/Sheets)';
+        // 【提示詞位置修改】: 使用 showCopyMessage
+        showCopyMessage('✅ 已複製表格 (可貼到 Google Docs/Sheets)', false);
     
     } catch (error) {
         // 如果富文本失敗 (例如瀏覽器不支援)，則降級回純文字
         try {
             await navigator.clipboard.writeText(text);
-            sysMsg.textContent = '✅ 已複製純文字 (富文本複製失敗)';
+            // 【提示詞位置修改】: 使用 showCopyMessage
+            showCopyMessage('✅ 已複製純文字 (富文本複製失敗)', false);
         } catch (err2) {
-            sysMsg.textContent = '❌ 複製失敗，瀏覽器權限不足。';
+            // 【提示詞位置修改】: 使用 showCopyMessage
+            showCopyMessage('❌ 複製失敗，瀏覽器權限不足。', true);
             console.error(err2);
         }
     }
   });
 
   el('btnDownload').addEventListener('click', () => {
-    // 下載 .txt 仍然使用 textContent (純文字)
     const text = output.textContent; 
     if (!text || text.startsWith('❌ 錯誤') || text.startsWith('請輸入')) {
-        sysMsg.textContent = '請先生成有效的內容。';
+        // 【提示詞位置修改】: 使用 showCopyMessage
+        showCopyMessage('請先生成有效的內容。', true);
         return;
     }
     const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
@@ -585,6 +609,8 @@ ${sourceText}`;
     a.href = URL.createObjectURL(blob);
     a.download = '短影音腳本.txt';
     a.click();
+    // 【提示詞位置修改】: 增加下載提示
+    showCopyMessage('✅ 已開始下載 .txt 檔案', false);
   });
   </script>
 </body>
