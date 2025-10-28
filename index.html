@@ -9,14 +9,32 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
+    /* 基本樣式 */
     body { font-family: 'Inter', sans-serif; background: #f9fafb; color: #111827; }
     .card { background: white; border-radius: 1rem; box-shadow: 0 5px 20px rgba(0,0,0,.05); padding: 1.5rem; }
-    .btn { border-radius: 9999px; padding: .6rem 1rem; font-weight: 600; }
+    
+    /* 按鈕樣式 */
+    .btn { border-radius: 9999px; padding: .6rem 1rem; font-weight: 600; transition: background-color 0.15s; }
     .btn-primary { background: #0284c7; color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: #0369a1; }
     .btn-ghost { background: #f3f4f6; color: #111827; }
-    .code { background: #0f172a; color: #e2e8f0; border-radius: .75rem; padding: 1rem; overflow: auto; white-space: pre-wrap; }
+    .btn-ghost:hover:not(:disabled) { background: #e5e7eb; }
+    
+    /* 禁用狀態 */
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* 程式碼與提示樣式 */
+    .code { 
+      background: #0f172a; 
+      color: #e2e8f0; 
+      border-radius: .75rem; 
+      padding: 1rem; 
+      overflow: auto; 
+      white-space: pre-wrap; 
+      font-size: 0.875rem; /* 稍微縮小字體 */
+    }
     .muted { color:#6b7280; font-size:12px }
-    .warn { color:#b45309 }
+    .warn { color:#dc2626; font-weight: 700; } /* 警告顏色改為更明顯的紅色 */
   </style>
 </head>
 <body>
@@ -26,10 +44,9 @@
   </header>
 
   <main class="max-w-4xl mx-auto px-4 space-y-6 pb-24">
-    <!-- 金鑰輸入區 -->
     <div class="card">
       <h2 class="text-xl font-semibold mb-3">第一步：輸入你的 OpenAI API Key</h2>
-      <p class="text-sm text-gray-600 mb-3">請貼上你的 API 金鑰（開頭為 <code>sk-</code>）。此金鑰僅會儲存在你的瀏覽器，不會上傳。</p>
+      <p class="text-sm text-gray-600 mb-3">請貼上你的 API 金鑰（開頭為 <code>sk-</code>）。此金鑰僅會儲存在你的瀏覽器，**不會上傳到任何伺服器**。</p>
       <div class="flex gap-2 items-center">
         <input id="userApiKey" type="password" placeholder="sk-xxxxxxxxxxxxxxxx" class="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-400">
         <button id="btnSaveKey" class="btn btn-ghost">儲存</button>
@@ -38,81 +55,76 @@
       <p id="keyHint" class="muted mt-2"></p>
     </div>
 
-    <!-- 文字輸入區（含字數限制顯示） -->
     <div class="card">
       <h2 class="text-xl font-semibold mb-2">第二步：貼上文章或逐字稿</h2>
-      <div class="flex items-center justify-between mb-2">
-        <div class="text-sm text-gray-700">目前字數上限：<span id="charLimit" class="font-semibold"></span> 字</div>
-        <div class="text-sm text-gray-700">已輸入：<span id="charCount" class="font-semibold">0</span>／剩餘：<span id="charRemain" class="font-semibold">0</span></div>
+      <div class="flex items-center justify-between mb-2 text-sm">
+        <div class="text-gray-700">字數上限：<span id="charLimit" class="font-semibold"></span> 字</div>
+        <div class="text-gray-700">已輸入：<span id="charCount" class="font-semibold">0</span>／剩餘：<span id="charRemain" class="font-semibold">0</span></div>
       </div>
-      <textarea id="inputText" rows="10" placeholder="請貼上逐字稿或文章內容...（過長會先自動摘要）" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-400"></textarea>
-      <p class="muted mt-2">提示：若內容遠超過上限，系統將分段摘要後再生成，確保不超過模型的 token 限制。</p>
+      <textarea id="inputText" rows="10" placeholder="請貼上逐字稿或文章內容...（過長會自動分段摘要）" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-400"></textarea>
+      <p class="muted mt-2">提示：若內容超過上限，系統將分段摘要後再生成，以避免超出模型 Token 限制。</p>
     </div>
 
-    <!-- 型態選擇 + 模型選擇 + 流程開關 -->
     <div class="card">
       <h2 class="text-xl font-semibold mb-3">第三步：選擇影片型態與模型</h2>
       <div class="space-y-2 mb-4">
-        <label class="flex items-start gap-3">
+        <label class="flex items-start gap-3 cursor-pointer">
           <input type="radio" name="mode" value="podcast" checked>
           <span><strong>Podcast 一鏡到底型：</strong>提供 5 段 45–75 秒重點片段</span>
         </label>
-        <label class="flex items-start gap-3">
+        <label class="flex items-start gap-3 cursor-pointer">
           <input type="radio" name="mode" value="topic">
           <span><strong>議題型：</strong>60 秒旁白腳本 + 建議畫面</span>
         </label>
-        <label class="flex items-start gap-3">
+        <label class="flex items-start gap-3 cursor-pointer">
           <input type="radio" name="mode" value="people">
           <span><strong>人物故事型：</strong>原音摘錄 + 旁白 + 畫面</span>
         </label>
       </div>
 
-      <div class="flex flex-wrap items-center gap-3">
+      <div class="flex flex-wrap items-center gap-4">
         <label class="text-sm text-gray-700">模型：</label>
-        <select id="modelSelect" class="p-2 border border-gray-300 rounded-lg">
-          <option value="gpt-4o-mini" selected>gpt-4o-mini（建議）</option>
-          <option value="o4-mini">o4-mini（強化推理）</option>
-          <option value="o3">o3（高階推理）</option>
-          <option value="gpt-4.1-mini">gpt-4.1-mini</option>
+        <select id="modelSelect" class="p-2 border border-gray-300 rounded-lg text-sm">
+          <option value="gpt-4o-mini" selected>gpt-4o-mini（建議、高CP值）</option>
+          <option value="gpt-4o">gpt-4o（高階推理）</option>
+          <option value="gpt-3.5-turbo">gpt-3.5-turbo（速度快、低成本）</option>
         </select>
-        <label class="flex items-center gap-2 ml-4 text-sm">
+        <label class="flex items-center gap-2 text-sm cursor-pointer">
           <input type="checkbox" id="chkSummarizeFirst" checked>
-          <span>先摘要，再生成（建議開啟）</span>
+          <span>先摘要，再生成（建議開啟，適用於長文）</span>
         </label>
       </div>
-      <p class="muted mt-2">本工具預設使用 <code>/v1/responses</code> 端點（新版 Responses API）。一般使用者不需理解端點細節。</p>
+      <p class="muted mt-2">本工具使用 <code>/v1/chat/completions</code> 端點。</p>
     </div>
 
-    <!-- 生成按鈕 -->
     <div class="card">
       <h2 class="text-xl font-semibold mb-3">第四步：生成腳本</h2>
       <button id="btnGenerate" class="btn btn-primary" disabled>確認生成</button>
       <p id="sysMsg" class="text-sm text-gray-600 mt-3"></p>
     </div>
 
-    <!-- 結果輸出 -->
     <div class="card">
       <h2 class="text-xl font-semibold mb-3">結果：</h2>
       <div class="flex flex-wrap gap-2 mb-3">
         <button id="btnCopy" class="btn btn-ghost">複製</button>
         <button id="btnDownload" class="btn btn-ghost">下載 .txt</button>
       </div>
-      <pre id="output" class="code"></pre>
+      <pre id="output" class="code">請輸入 API Key 並貼上文章以開始生成。</pre>
     </div>
   </main>
 
   <script>
-  // === 可調整上限（以「字元」估算，CJK 常接近 token 數量） ===
-  const INPUT_CHAR_LIMIT = 12000; // 顯示的最大建議輸入長度
-  const CHUNK_SIZE = 3000;        // 分段摘要時每段大小
-  const SUMMARY_TARGET_CHARS = 300; // 單段摘要期望長度（依使用者要求，每段 300 字內）
-  const USE_TIMEOUT_MS = 120_000;
+  // === 配置參數 ===
+  const INPUT_CHAR_LIMIT = 12000;
+  const CHUNK_SIZE = 4000;       // 分段摘要時每段大小
+  const SUMMARY_TARGET_CHARS = 300; // 單段摘要期望長度
+  const USE_TIMEOUT_MS = 180_000; // 3分鐘超時
 
-  // === 金鑰儲存 ===
+  // === 狀態儲存 ===
   const KEY_STORAGE = 'user_api_key';
   const MASK = '********';
 
-  // === DOM ===
+  // === DOM 元素引用 ===
   const el = id => document.getElementById(id);
   const keyInput = el('userApiKey');
   const saveBtn = el('btnSaveKey');
@@ -125,48 +137,67 @@
   const chkSummarizeFirst = el('chkSummarizeFirst');
   const inputText = el('inputText');
   const charLimit = el('charLimit');
-  const charCount = el('charCount');
+  const charCount = el('charRemain').previousElementSibling; // 'charCount'
   const charRemain = el('charRemain');
+  const modeRadios = document.querySelectorAll('input[name="mode"]');
+  const controlElements = [generateBtn, modelSelect, chkSummarizeFirst, inputText, ...modeRadios];
 
-  // === 狀態 ===
+  // === 狀態初始化 ===
   let userApiKey = localStorage.getItem(KEY_STORAGE) || '';
   if (userApiKey) {
     keyInput.value = MASK;
     keyHint.textContent = `目前已儲存金鑰：sk-****${userApiKey.slice(-4)}（僅存在瀏覽器）`;
+    output.textContent = '已偵測到金鑰，請貼上文章並點擊「確認生成」。';
   }
   charLimit.textContent = INPUT_CHAR_LIMIT.toLocaleString();
   updateCharCounter();
   updateGenerateButtonState();
 
-  // === UI：字數計數 ===
+  // === UI 控制：字數計數與按鈕狀態 ===
   function updateCharCounter() {
     const len = inputText.value.length;
     charCount.textContent = len.toLocaleString();
-    const remain = Math.max(0, INPUT_CHAR_LIMIT - len);
+    const remain = INPUT_CHAR_LIMIT - len;
+
     charRemain.textContent = remain.toLocaleString();
-    if (len > INPUT_CHAR_LIMIT) {
+    
+    // 超出限制時顯示負值並加警告色
+    if (remain < 0) {
       charRemain.classList.add('warn');
     } else {
       charRemain.classList.remove('warn');
     }
+    updateGenerateButtonState();
   }
   inputText.addEventListener('input', updateCharCounter);
-
+  
   function updateGenerateButtonState() {
-    const ok = Boolean(userApiKey);
-    generateBtn.disabled = !ok;
+    const hasKey = Boolean(userApiKey);
+    const hasInput = inputText.value.trim().length > 0;
+    generateBtn.disabled = !(hasKey && hasInput);
   }
 
-  // === 金鑰操作 ===
+  function setControlsDisabled(disabled) {
+    controlElements.forEach(el => el.disabled = disabled);
+  }
+
+  // === 金鑰操作 (使用提示取代 alert) ===
   saveBtn.addEventListener('click', () => {
     const val = keyInput.value.trim();
-    if (val === MASK) return alert('這是遮罩文字，請貼上真正的 API Key（sk- 開頭）。');
-    if (!/^sk-[A-Za-z0-9]{20,}/.test(val)) return alert('請輸入正確格式的 API Key（開頭為 sk-）');
+    if (val === MASK) {
+      keyHint.innerHTML = '<span class="warn">請貼上真正的 API Key（sk- 開頭）。</span>';
+      return;
+    }
+    if (!/^sk-[A-Za-z0-9]{20,}/.test(val)) {
+      keyHint.innerHTML = '<span class="warn">請輸入正確格式的 API Key（開頭為 sk-）</span>';
+      return;
+    }
+    
+    // 儲存成功
     localStorage.setItem(KEY_STORAGE, val);
     userApiKey = val;
     keyInput.value = MASK;
-    keyHint.textContent = `目前已儲存金鑰：sk-****${userApiKey.slice(-4)}（僅存在瀏覽器）`;
-    alert('✅ API Key 已儲存於瀏覽器');
+    keyHint.textContent = `✅ API Key 已儲存於瀏覽器：sk-****${userApiKey.slice(-4)}`;
     updateGenerateButtonState();
   });
 
@@ -174,25 +205,46 @@
     localStorage.removeItem(KEY_STORAGE);
     userApiKey = '';
     keyInput.value = '';
-    keyHint.textContent = '';
-    alert('🔒 已清除 API Key');
+    keyHint.textContent = '🔒 已清除 API Key，請重新輸入';
+    output.textContent = '請輸入 API Key 並貼上文章以開始生成。';
     updateGenerateButtonState();
   });
 
-  // === OpenAI 呼叫（使用 Responses API） ===
-  async function callResponsesAPI({ model, input, signal }) {
+  // === OpenAI 呼叫（使用 /v1/chat/completions） ===
+  async function callChatCompletions({ model, prompt, signal }) {
     const MAX_RETRY = 3;
     let attempt = 0;
     let lastErr;
+    
+    // 檢查 prompt 是否包含 system role，並將其分離
+    let systemMessageContent = '你是一個有幫助、專業的助理。';
+    
+    // 根據 prompt 內容判斷是否為專業任務，並提取 System Role
+    const promptLines = prompt.split('\n');
+    if (promptLines[0].startsWith('你是')) {
+        systemMessageContent = promptLines[0];
+        prompt = promptLines.slice(1).join('\n').trim(); // 移除第一行作為 User Content
+    }
+    
+    const messages = [
+      { role: 'system', content: systemMessageContent },
+      { role: 'user', content: prompt }
+    ];
+
     while (attempt < MAX_RETRY) {
       try {
-        const res = await fetch('https://api.openai.com/v1/responses', {
+        const res = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${userApiKey}`,
           },
-          body: JSON.stringify({ model, input, temperature: 0.7 }),
+          body: JSON.stringify({
+            model,
+            messages,
+            temperature: 0.7,
+            stream: false, // 暫不啟用串流，簡化邏輯
+          }),
           signal
         });
 
@@ -202,52 +254,53 @@
 
         if (!res.ok) {
           const msg = data?.error?.message || raw || `HTTP ${res.status}`;
-          // 若是 429（流量/額度），實施退避重試
           if (res.status === 429) {
             const backoff = Math.min(2000 * (attempt + 1), 8000);
             await new Promise(r => setTimeout(r, backoff));
             attempt++;
             lastErr = new Error(`HTTP 429｜${msg}`);
-            continue;
+            continue; // 重試
           }
           throw new Error(`HTTP ${res.status} ${res.statusText}｜${msg}`);
         }
 
-        const textOut = data?.output_text
-          || data?.content?.[0]?.text
-          || data?.choices?.[0]?.message?.content
-          || '';
+        // 標準 Chat Completions API 的結果解析
+        const textOut = data?.choices?.[0]?.message?.content || '';
         return textOut;
       } catch (e) {
-        // 若是 abort 或網路錯誤，直接拋出
         if (e.name === 'AbortError') throw e;
         lastErr = e;
-        // 其他錯誤稍作延遲後重試
         const backoff = Math.min(1500 * (attempt + 1), 6000);
         await new Promise(r => setTimeout(r, backoff));
-        attempt++;
+        attempt++; // 重試
       }
     }
     throw lastErr || new Error('呼叫失敗，請稍後再試');
   }
 
-  // === 任務：摘要 ===
+  // === 任務：摘要提示詞 (使用字串模板) ===
   function summaryPrompt(text, targetChars) {
     return `你是專業中文編輯，請將以下文本重點濃縮為不超過 ${targetChars} 字的條列式摘要，保留關鍵事實、人物、數據與脈絡，使用繁體中文。
-\n【原文】\n${text}`;
+
+【原文】
+${text}`;
   }
 
-  // === 任務：腳本 ===
+  // === 任務：腳本提示詞 (使用字串模板) ===
   function buildScriptPrompt(mode, sourceText) {
     const base = `你是台灣中文內容製作的短影音腳本編劇，請用繁體中文撰寫 Markdown 格式輸出。`;
     let task = '';
     if (mode === 'podcast') task = '請選出 5 段 45–75 秒可一鏡到底的重點片段，附時間碼與重點';
     else if (mode === 'topic') task = '請寫出 60 秒議題型旁白腳本，附建議時間與畫面';
     else task = '請寫出 60 秒人物故事型腳本，包含原音摘錄、大意與建議畫面';
-    return `${base}\n${task}\n以下為摘要後的重點內容：\n${sourceText}`;
+    
+    return `${base}
+${task}
+以下為摘要後的重點內容：
+${sourceText}`;
   }
 
-  // === 工具：分段 ===
+  // === 工具：分段（保持不變） ===
   function chunkText(text, size) {
     const chunks = [];
     for (let i = 0; i < text.length; i += size) {
@@ -257,11 +310,11 @@
   }
 
   async function summarizeLongTextIfNeeded(text, model, signal) {
-    if (!chkSummarizeFirst.checked) return text; // 直接用原文
+    if (!chkSummarizeFirst.checked) return text;
 
     if (text.length <= INPUT_CHAR_LIMIT) {
-      // 仍先做一次整體摘要，降低總 token
-      return await callResponsesAPI({ model, input: summaryPrompt(text, SUMMARY_TARGET_CHARS * 2), signal });
+      sysMsg.textContent = '正在進行單次整體摘要（減少 Token 用量）…';
+      return await callChatCompletions({ model, prompt: summaryPrompt(text, SUMMARY_TARGET_CHARS * 3), signal });
     }
 
     // 超過上限：分段摘要 → 合併摘要
@@ -269,62 +322,92 @@
     let partials = [];
     for (let i = 0; i < parts.length; i++) {
       const p = parts[i];
-      sysMsg.textContent = `摘要第 ${i+1}/${parts.length} 段…`;
-      const s = await callResponsesAPI({ model, input: summaryPrompt(p, SUMMARY_TARGET_CHARS), signal });
+      sysMsg.textContent = `摘要第 ${i+1}/${parts.length} 段，濃縮為 ${SUMMARY_TARGET_CHARS} 字內…`;
+      const s = await callChatCompletions({ model, prompt: summaryPrompt(p, SUMMARY_TARGET_CHARS), signal });
       partials.push(`【第${i+1}段摘要】\n${s}`);
     }
 
     const merged = partials.join('\n\n');
-    sysMsg.textContent = '合併整體摘要…';
-    const finalSummary = await callResponsesAPI({ model, input: summaryPrompt(merged, SUMMARY_TARGET_CHARS * 2), signal });
+    sysMsg.textContent = '合併整體摘要，準備最終腳本生成…';
+    const finalSummary = await callChatCompletions({ model, prompt: summaryPrompt(merged, SUMMARY_TARGET_CHARS * 2), signal });
     return finalSummary;
   }
 
-  // === 生成 ===
+  // === 生成主流程 ===
   generateBtn.addEventListener('click', async () => {
     const raw = inputText.value.trim();
-    if (!raw) return alert('請先貼上內容');
-    if (!userApiKey) return alert('請先輸入你的 OpenAI API Key');
+    if (!raw) {
+        sysMsg.textContent = '請先貼上內容！';
+        return;
+    }
+    if (!userApiKey) {
+        sysMsg.textContent = '請先輸入你的 OpenAI API Key！';
+        return;
+    }
 
-    const mode = document.querySelector('input[name="mode"]:checked')?.value || 'topic';
-    const model = modelSelect.value;
-
+    setControlsDisabled(true); // 禁用所有控制項
     output.textContent = '⏳ 正在生成中...';
     sysMsg.textContent = '請稍候，AI 正在摘要與撰寫腳本';
-
+    
+    const mode = document.querySelector('input[name="mode"]:checked')?.value || 'topic';
+    const model = modelSelect.value;
+    
     const ac = new AbortController();
-    const timeout = setTimeout(() => ac.abort(), USE_TIMEOUT_MS);
+    // 設置超時機制
+    const timeout = setTimeout(() => {
+      ac.abort();
+      // 在 AbortError 中處理訊息，此處僅設置
+    }, USE_TIMEOUT_MS);
 
     try {
-      // 1) 先摘要
+      // 1) 摘要流程
       const summary = await summarizeLongTextIfNeeded(raw, model, ac.signal);
 
-      // 2) 再依模式生成腳本
+      // 2) 腳本生成流程
       sysMsg.textContent = '根據摘要生成腳本…';
       const scriptPrompt = buildScriptPrompt(mode, summary || raw);
-      const result = await callResponsesAPI({ model, input: scriptPrompt, signal: ac.signal });
+      const result = await callChatCompletions({ model, prompt: scriptPrompt, signal: ac.signal });
 
       output.textContent = result;
       sysMsg.textContent = '✅ 已完成';
     } catch (err) {
-      output.textContent = '❌ 錯誤：' + (err?.message || err);
-      sysMsg.textContent = '發生錯誤（若為 429 表示達到用量或速率上限，請稍後重試或檢查金流與額度）';
+      if (err.name === 'AbortError') {
+        output.textContent = '❌ 錯誤：操作超時，已終止請求。';
+        sysMsg.textContent = '請求已超時（網路連線、內容過長或模型延遲）。';
+      } else {
+        output.textContent = `❌ 錯誤：${err?.message || err.toString()}`;
+        sysMsg.textContent = '發生錯誤（請檢查 API Key、用量或速率上限）。';
+      }
       console.error(err);
     } finally {
       clearTimeout(timeout);
+      setControlsDisabled(false); // 啟用所有控制項
+      updateGenerateButtonState(); // 更新按鈕狀態
     }
   });
 
   // === 複製 / 下載 ===
   el('btnCopy').addEventListener('click', async () => {
     const text = output.textContent;
-    if (!text) return;
-    await navigator.clipboard.writeText(text);
-    alert('✅ 已複製到剪貼簿');
+    if (!text || text.startsWith('❌ 錯誤')) {
+        sysMsg.textContent = '請先生成有效的內容。';
+        return;
+    }
+    try {
+        await navigator.clipboard.writeText(text);
+        sysMsg.textContent = '✅ 已複製到剪貼簿';
+    } catch (error) {
+        sysMsg.textContent = '❌ 複製失敗，瀏覽器權限不足。';
+    }
   });
 
   el('btnDownload').addEventListener('click', () => {
-    const blob = new Blob([output.textContent], { type: 'text/plain;charset=utf-8' });
+    const text = output.textContent;
+    if (!text || text.startsWith('❌ 錯誤')) {
+        sysMsg.textContent = '請先生成有效的內容。';
+        return;
+    }
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = '短影音腳本.txt';
