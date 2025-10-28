@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
     /* 基本樣式與藍色調優化 */
     body { font-family: 'Inter', sans-serif; background: #f0f3f8; color: #111827; } /* 淺藍灰色底色 */
@@ -40,8 +41,9 @@
       border-radius: .75rem; 
       padding: 1.5rem;  /* 增加內邊距 */
       overflow: auto; 
-      white-space: pre-wrap; 
       font-size: 0.875rem;
+      /* 【修改 2/6】: pre-wrap 會保留空白，改用 div 後不需要 */
+      /* white-space: pre-wrap; */ 
     }
     .muted { color:#6b7280; font-size:12px }
     .warn { color:#dc2626; font-weight: 700; } 
@@ -55,6 +57,32 @@
         border-color: #0284c7;
         outline: none;
         box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.2);
+    }
+    
+    /* 【新增 3/6】: 表格樣式，使其在 .code (深色背景) 中可讀 */
+    .markdown-output table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 1rem 0;
+    }
+    .markdown-output th, 
+    .markdown-output td {
+        border: 1px solid #374151; /* 灰色邊框 */
+        padding: 0.5rem 0.75rem;
+        text-align: left;
+    }
+    .markdown-output th {
+        background-color: #1f2937; /* 表頭深色 */
+    }
+    .markdown-output tr:nth-child(even) {
+        background-color: #11182a; /* 斑馬紋 */
+    }
+    .markdown-output h1,
+    .markdown-output h2,
+    .markdown-output h3 {
+        font-weight: 600;
+        margin-top: 1.5rem;
+        margin-bottom: 0.5rem;
     }
   </style>
 </head>
@@ -148,13 +176,14 @@
         <button id="btnCopy" class="btn btn-ghost">複製結果</button>
         <button id="btnDownload" class="btn btn-ghost">下載 .txt</button>
       </div>
-      <pre id="output" class="code">請輸入至少一個 API Key 並貼上文章以開始生成。</pre>
+      <div id="output" class="code markdown-output" style="min-height: 100px; white-space: normal;">請輸入至少一個 API Key 並貼上文章以開始生成。</div>
     </div>
   </main>
 
   <script>
   // === 配置參數 ===
-  const INPUT_CHAR_LIMIT = 10000; 
+  // 【修改 5/6】: 字數限制改為 20000
+  const INPUT_CHAR_LIMIT = 20000; 
   const USE_TIMEOUT_MS = 120_000; // 2分鐘超時
 
   // === 狀態儲存鍵值 ===
@@ -422,7 +451,8 @@
 
   // === 任務：腳本提示詞 (使用字串模板) ===
   function buildScriptPrompt(mode, sourceText) {
-    const base = '你是台灣中文內容製作的短影音腳本編劇，請用繁體中文撰寫 Markdown 格式輸出。';
+    // 【修改 6/6】: 提示詞要求使用 Markdown 表格
+    const base = '你是台灣中文內容製作的短影音腳本編劇，請用繁體中文撰寫。請優先使用 Markdown 表格 (table) 格式來組織你的輸出內容。';
     let task = '';
     if (mode === 'podcast') task = '請選出 5 段 45–75 秒可一鏡到底的重點片段，附時間碼與重點，內容基於以下原文。';
     else if (mode === 'topic') task = '請寫出 60 秒議題型旁白腳本 + 建議畫面，內容基於以下原文。';
@@ -458,7 +488,8 @@ ${sourceText}`;
     }
 
     setControlsDisabled(true); 
-    output.textContent = '⏳ 正在生成中... (請耐心等待)';
+    // 切換為 textContent 避免 XSS
+    output.textContent = '⏳ 正在生成中... (請耐心等待)'; 
     sysMsg.textContent = `使用 ${provider.toUpperCase()} (Model: ${modelName}) 撰寫腳本…`;
     
     const mode = document.querySelector('input[name="mode"]:checked')?.value || 'topic';
@@ -470,30 +501,34 @@ ${sourceText}`;
       const scriptPrompt = buildScriptPrompt(mode, raw);
       const result = await callChatCompletions({ provider, modelName, prompt: scriptPrompt, signal: ac.signal });
 
-      output.textContent = result;
-      sysMsg.textContent = '✅ 已完成';
+      // 【重要修改】: 使用 marked.parse 將 Markdown 轉為 HTML
+      output.innerHTML = marked.parse(result); 
+      sysMsg.textContent = '✅ 已完成 (可直接選取表格貼到 Google Sheets)';
     
     } catch (err) {
+      let errorMsg = '';
       if (err.name === 'AbortError') {
-        output.textContent = '❌ 錯誤：操作超時，已終止請求。';
+        errorMsg = '❌ 錯誤：操作超時，已終止請求。';
         sysMsg.textContent = '請求已超時（網路連線、內容過長或模型延遲）。';
       
       } else if (err.message.includes('HTTP 401')) {
-        output.textContent = `❌ 錯誤：${provider.toUpperCase()} Key 無效或授權失敗 (HTTP 401)。`;
+        errorMsg = `❌ 錯誤：${provider.toUpperCase()} Key 無效或授權失敗 (HTTP 401)。`;
         sysMsg.textContent = `請檢查您的 ${provider.toUpperCase()} API Key 是否正確且有效。`;
       
       } else if (err.message.includes('HTTP 429')) {
-        output.textContent = `❌ 錯誤：${err?.message || 'HTTP 429'}`;
+        errorMsg = `❌ 錯誤：${err?.message || 'HTTP 429'}`;
         sysMsg.textContent = `錯誤：已達 ${provider.toUpperCase()} API 速率或額度上限 (Quota)。請登入該平台檢查您的帳單與付款設定。`;
       
       } else if (err.message.includes('400') && err.message.includes('maximum context length')) {
-        output.textContent = '❌ 錯誤：輸入內容過長，超過模型最大 Token 限制。';
+        errorMsg = '❌ 錯誤：輸入內容過長，超過模型最大 Token 限制。';
         sysMsg.textContent = '請精簡您的文章內容後再試。';
       
       } else {
-        output.textContent = `❌ 錯誤：${err?.message || err.toString()}`;
+        errorMsg = `❌ 錯誤：${err?.message || err.toString()}`;
         sysMsg.textContent = '發生錯誤（請檢查 Key、用量或主控台）。';
       }
+      
+      output.textContent = errorMsg; // 錯誤訊息使用 textContent
       console.error(err);
     
     } finally {
@@ -505,22 +540,43 @@ ${sourceText}`;
 
   // === 複製 / 下載 ===
   el('btnCopy').addEventListener('click', async () => {
-    const text = output.textContent;
-    if (!text || text.startsWith('❌ 錯誤')) {
+    // 【重要修改】: 升級複製功能，優先複製 HTML (富文本)
+    const html = output.innerHTML;
+    const text = output.textContent; // 備用的純文字
+
+    if (!text || text.startsWith('❌ 錯誤') || text.startsWith('請輸入')) {
         sysMsg.textContent = '請先生成有效的內容。';
         return;
     }
+    
     try {
-        await navigator.clipboard.writeText(text);
-        sysMsg.textContent = '✅ 已複製到剪貼簿';
+        // 嘗試寫入 HTML (富文本)
+        const blob = new Blob([html], { type: 'text/html' });
+        // @ts-ignore
+        const item = new ClipboardItem({
+            'text/html': blob,
+            'text/plain': new Blob([text], { type: 'text/plain' })
+        });
+        // @ts-ignore
+        await navigator.clipboard.write([item]);
+        sysMsg.textContent = '✅ 已複製表格 (可貼到 Google Docs/Sheets)';
+    
     } catch (error) {
-        sysMsg.textContent = '❌ 複製失敗，瀏覽器權限不足。';
+        // 如果富文本失敗 (例如瀏覽器不支援)，則降級回純文字
+        try {
+            await navigator.clipboard.writeText(text);
+            sysMsg.textContent = '✅ 已複製純文字 (富文本複製失敗)';
+        } catch (err2) {
+            sysMsg.textContent = '❌ 複製失敗，瀏覽器權限不足。';
+            console.error(err2);
+        }
     }
   });
 
   el('btnDownload').addEventListener('click', () => {
-    const text = output.textContent;
-    if (!text || text.startsWith('❌ 錯誤')) {
+    // 下載 .txt 仍然使用 textContent (純文字)
+    const text = output.textContent; 
+    if (!text || text.startsWith('❌ 錯誤') || text.startsWith('請輸入')) {
         sysMsg.textContent = '請先生成有效的內容。';
         return;
     }
@@ -533,3 +589,4 @@ ${sourceText}`;
   </script>
 </body>
 </html>
+
