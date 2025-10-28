@@ -9,95 +9,116 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    /* 基本樣式 */
-    body { font-family: 'Inter', sans-serif; background: #f9fafb; color: #111827; }
-    .card { background: white; border-radius: 1rem; box-shadow: 0 5px 20px rgba(0,0,0,.05); padding: 1.5rem; }
-    
+    /* 基本樣式與藍色調優化 */
+    body { font-family: 'Inter', sans-serif; background: #f0f3f8; color: #111827; }
+    .card { 
+        background: white; 
+        border-radius: 1.25rem; /* 稍微更圓潤 */
+        box-shadow: 0 10px 30px rgba(0,0,0,.08); /* 更明顯的陰影 */
+        padding: 2rem; /* 增加內邊距 */
+        border: 1px solid #e5e7eb; /* 輕微邊框 */
+    }
+    
     /* 按鈕樣式 */
-    .btn { border-radius: 9999px; padding: .6rem 1rem; font-weight: 600; transition: background-color 0.15s; }
-    .btn-primary { background: #0284c7; color: #fff; }
-    .btn-primary:hover:not(:disabled) { background: #0369a1; }
-    .btn-ghost { background: #f3f4f6; color: #111827; }
-    .btn-ghost:hover:not(:disabled) { background: #e5e7eb; }
+    .btn { border-radius: 9999px; padding: .6rem 1.5rem; font-weight: 600; transition: all 0.2s; }
+    .btn-primary { 
+        background: #0284c7; 
+        color: #fff; 
+        box-shadow: 0 4px 10px rgba(2, 132, 199, 0.4);
+    }
+    .btn-primary:hover:not(:disabled) { background: #0369a1; box-shadow: 0 6px 15px rgba(2, 132, 199, 0.5); }
+    .btn-ghost { background: #eef2ff; color: #0284c7; border: 1px solid #c7d2fe; } /* 淺藍色系按鈕 */
+    .btn-ghost:hover:not(:disabled) { background: #dbeafe; } /* 懸停時更深的藍色 */
     
     /* 禁用狀態 */
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
 
     /* 程式碼與提示樣式 */
     .code { 
       background: #0f172a; 
       color: #e2e8f0; 
       border-radius: .75rem; 
-      padding: 1rem; 
+      padding: 1.5rem;  /* 增加內邊距 */
       overflow: auto; 
       white-space: pre-wrap; 
       font-size: 0.875rem;
     }
     .muted { color:#6b7280; font-size:12px }
     .warn { color:#dc2626; font-weight: 700; } 
+    .input-style {
+        padding: 0.75rem;
+        border: 1px solid #cbd5e1;
+        border-radius: 0.75rem;
+        transition: border-color 0.2s;
+    }
+    .input-style:focus {
+        border-color: #0284c7;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.2);
+    }
   </style>
 </head>
 <body>
-  <header class="max-w-4xl mx-auto px-4 py-8">
-    <h1 class="text-3xl font-bold mb-2">短影音腳本生成器 🎬</h1>
+  <header class="max-w-4xl mx-auto px-4 py-10">
+    <h1 class="text-4xl font-extrabold mb-2 text-sky-700">短影音腳本生成器 🎬</h1>
     <p class="text-gray-600">此版本支援 OpenAI 及 Gemini API，金鑰僅儲存在本機瀏覽器。</p>
   </header>
 
-  <main class="max-w-4xl mx-auto px-4 space-y-6 pb-24">
+  <main class="max-w-4xl mx-auto px-4 space-y-8 pb-24">
     <div class="card">
-      <h2 class="text-xl font-semibold mb-3">第一步：輸入你的 API Key</h2>
+      <h2 class="text-2xl font-semibold mb-4 text-gray-800">第一步：輸入你的 API Key</h2>
       
-      <div class="mb-4">
-        <label for="openaiApiKey" class="block text-sm font-medium text-gray-700 mb-1">OpenAI API Key (sk-)</label>
-        <div class="flex gap-2 items-center">
-          <input id="openaiApiKey" type="password" placeholder="sk-xxxxxxxxxxxxxxxx" class="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-400">
+      <div class="mb-5">
+        <label for="openaiApiKey" class="block text-sm font-medium text-gray-700 mb-2">OpenAI API Key (sk-)</label>
+        <div class="flex gap-3 items-center">
+          <input id="openaiApiKey" type="password" placeholder="sk-xxxxxxxxxxxxxxxx" class="flex-1 input-style">
           <button id="btnSaveOpenAIKey" class="btn btn-ghost">儲存</button>
           <button id="btnClearOpenAIKey" class="btn btn-ghost">清除</button>
         </div>
-        <p id="openaiKeyHint" class="muted mt-1"></p>
+        <p id="openaiKeyHint" class="muted mt-2"></p>
       </div>
 
       <div>
-        <label for="geminiApiKey" class="block text-sm font-medium text-gray-700 mb-1">Gemini API Key (AIza)</label>
-        <div class="flex gap-2 items-center">
-          <input id="geminiApiKey" type="password" placeholder="AIzaSyAxxxxxxxxxxxxxxxxx" class="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-400">
+        <label for="geminiApiKey" class="block text-sm font-medium text-gray-700 mb-2">Gemini API Key (AIza)</label>
+        <div class="flex gap-3 items-center">
+          <input id="geminiApiKey" type="password" placeholder="AIzaSyAxxxxxxxxxxxxxxxxx" class="flex-1 input-style">
           <button id="btnSaveGeminiKey" class="btn btn-ghost">儲存</button>
           <button id="btnClearGeminiKey" class="btn btn-ghost">清除</button>
         </div>
-        <p id="geminiKeyHint" class="muted mt-1"></p>
+        <p id="geminiKeyHint" class="muted mt-2"></p>
       </div>
     </div>
 
     <div class="card">
-      <h2 class="text-xl font-semibold mb-2">第二步：貼上文章或逐字稿</h2>
-      <div class="flex items-center justify-between mb-2 text-sm">
-        <div class="text-gray-700">建議字數：<span id="charLimit" class="font-semibold"></span> 字</div>
-        <div class="text-gray-700">已輸入：<span id="charCount" class="font-semibold">0</span>／建議範圍內剩餘：<span id="charRemain" class="font-semibold">0</span></div>
+      <h2 class="text-2xl font-semibold mb-4 text-gray-800">第二步：貼上文章或逐字稿</h2>
+      <div class="flex items-center justify-between mb-3 text-sm">
+        <div class="text-gray-700">建議字數：<span id="charLimit" class="font-semibold text-sky-600"></span> 字</div>
+        <div class="text-gray-700">已輸入：<span id="charCount" class="font-semibold text-sky-600">0</span>／建議範圍內剩餘：<span id="charRemain" class="font-semibold text-sky-600">0</span></div>
       </div>
-      <textarea id="inputText" rows="10" placeholder="請貼上逐字稿或文章內容...（注意：長文可能超出模型單次處理限制）" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-400"></textarea>
+      <textarea id="inputText" rows="10" placeholder="請貼上逐字稿或文章內容...（注意：長文可能超出模型單次處理限制）" class="w-full input-style"></textarea>
       <p class="muted mt-2">提示：若內容過長，請自行精簡，以避免超出模型的 Token 限制導致生成失敗。</p>
     </div>
 
     <div class="card">
-      <h2 class="text-xl font-semibold mb-3">第三步：選擇影片型態與模型</h2>
-      <div class="space-y-2 mb-4">
+      <h2 class="text-2xl font-semibold mb-4 text-gray-800">第三步：選擇影片型態與模型</h2>
+      <div class="space-y-3 mb-5">
         <label class="flex items-start gap-3 cursor-pointer">
-          <input type="radio" name="mode" value="podcast" checked>
+          <input type="radio" name="mode" value="podcast" checked class="mt-1 accent-sky-600">
           <span><strong>Podcast 一鏡到底型：</strong>提供 5 段 45–75 秒重點片段</span>
         </label>
         <label class="flex items-start gap-3 cursor-pointer">
-          <input type="radio" name="mode" value="topic">
+          <input type="radio" name="mode" value="topic" class="mt-1 accent-sky-600">
           <span><strong>議題型：</strong>60 秒旁白腳本 + 建議畫面</span>
         </label>
         <label class="flex items-start gap-3 cursor-pointer">
-          <input type="radio" name="mode" value="people">
+          <input type="radio" name="mode" value="people" class="mt-1 accent-sky-600">
           <span><strong>人物故事型：：</strong>原音摘錄 + 旁白 + 畫面</span>
         </label>
       </div>
 
       <div class="flex flex-wrap items-center gap-4">
-        <label class="text-sm text-gray-700">模型：</label>
-        <select id="modelSelect" class="p-2 border border-gray-300 rounded-lg text-sm">
+        <label class="text-sm text-gray-700 font-medium">選擇模型：</label>
+        <select id="modelSelect" class="input-style text-sm">
           <optgroup label="OpenAI (需要 sk- Key)">
             <option value="openai:gpt-4o-mini" selected>GPT-4o mini（建議）</option>
             <option value="openai:gpt-4o">GPT-4o（高階推理）</option>
@@ -108,25 +129,22 @@
             <option value="gemini:gemini-2.5-pro">Gemini 2.5 Pro（進階推理）</option>
           </optgroup>
         </select>
-        <label class="flex items-center gap-2 text-sm ml-4 text-gray-500">
-            <span>已移除「先摘要」功能，請自行精簡內容。</span>
-        </label>
       </div>
-      <p class="muted mt-2">OpenAI 使用 <code>/v1/chat/completions</code>；Gemini 使用 <code>/v1beta/models/...:generateContent</code> 端點。</p>
+      <p class="muted mt-3">OpenAI 使用 <code>/v1/chat/completions</code>；Gemini 使用 <code>/v1beta/models/...:generateContent</code> 端點。</p>
     </div>
 
     <div class="card">
-      <h2 class="text-xl font-semibold mb-3">第四步：生成腳本</h2>
+      <h2 class="text-2xl font-semibold mb-4 text-gray-800">第四步：生成腳本</h2>
       <button id="btnGenerate" class="btn btn-primary" disabled>確認生成</button>
-      <p id="sysMsg" class="text-sm text-gray-600 mt-3"></p>
+      <p id="sysMsg" class="text-sm text-gray-600 mt-4"></p>
     </div>
 
     <div class="card">
-      <h2 class="text-xl font-semibold mb-3">結果：</h2>
-      <div class="flex flex-wrap gap-2 mb-3">
-        <button id="btnCopy" class="btn btn-ghost">複製</button>
+      <h2 class="text-2xl font-semibold mb-4 text-gray-800">結果：</h2>
+      <div class="flex flex-wrap gap-3 mb-4">
+        <button id="btnCopy" class="btn btn-ghost">複製結果</button>
         <button id="btnDownload" class="btn btn-ghost">下載 .txt</button>
-        </div>
+      </div>
       <pre id="output" class="code">請輸入至少一個 API Key 並貼上文章以開始生成。</pre>
     </div>
   </main>
@@ -282,9 +300,7 @@
         geminiKeyHint.textContent = `✅ 金鑰未變更：AIza****${userGeminiKey.slice(-4)}（已儲存）`;
         return; 
     }
-    
-    // 【已修正】Regex：檢查 AIzaSy 開頭和總長度
-    // 將 {35,45} 修正為 {33,45}，允許總長度為 39 到 51 個字元，涵蓋常見的 39 字元 Key。
+    // 修復 Regex (前次修正): 檢查 AIzaSy 開頭和總長度 (39-51 字元)
     const API_KEY_REGEX = /^AIzaSy[a-zA-Z0-9_-]{33,45}$/; 
 
     if (!API_KEY_REGEX.test(val)) {
@@ -346,12 +362,12 @@
           headers = {
             'Content-Type': 'application/json',
           };
-          // 注意：此處將 systemMessageContent 併入 user 訊息中，這是原始碼做法。
+          // 【已修正】將 config 改為 generationConfig，解決 HTTP 400 錯誤。
           body = JSON.stringify({
             contents: [
               { role: 'user', parts: [{ text: `${systemMessageContent}\n\n${prompt}` }] }
             ],
-            config: {
+            generationConfig: {
                 temperature: 0.7,
             }
           });
