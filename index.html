@@ -46,7 +46,7 @@
   <main class="max-w-4xl mx-auto px-4 space-y-6 pb-24">
     <div class="card">
       <h2 class="text-xl font-semibold mb-3">第一步：輸入你的 OpenAI API Key</h2>
-      <p class="text-sm text-gray-600 mb-3">請貼上你的 API 金鑰（開頭為 <code>sk-</code>）。此金鑰僅會儲存在你的瀏覽器，**不會上傳到任何伺服器**。</p>
+      <p class="text-sm text-gray-600 mb-3">請貼上你的 API 金鑰（開頭為 <code>sk-</code> 或 <code>sk-proj-</code>）。此金鑰僅會儲存在你的瀏覽器。</p>
       <div class="flex gap-2 items-center">
         <input id="userApiKey" type="password" placeholder="sk-xxxxxxxxxxxxxxxx" class="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-400">
         <button id="btnSaveKey" class="btn btn-ghost">儲存</button>
@@ -114,7 +114,6 @@
 
   <script>
   // === 配置參數 ===
-  // 由於移除了摘要，此限制僅為給使用者的參考建議（約 8k-16k token 的中文內容）
   const INPUT_CHAR_LIMIT = 10000; 
   const USE_TIMEOUT_MS = 120_000; // 2分鐘超時
 
@@ -132,13 +131,12 @@
   const sysMsg = el('sysMsg');
   const keyHint = el('keyHint');
   const modelSelect = el('modelSelect');
-  // const chkSummarizeFirst = el('chkSummarizeFirst'); // 已移除
   const inputText = el('inputText');
   const charLimit = el('charLimit');
   const charCount = el('charRemain').previousElementSibling; 
   const charRemain = el('charRemain');
   const modeRadios = document.querySelectorAll('input[name="mode"]');
-  const controlElements = [generateBtn, modelSelect, inputText, ...modeRadios]; // 移除 chkSummarizeFirst
+  const controlElements = [generateBtn, modelSelect, inputText, ...modeRadios];
 
   // === 狀態初始化 ===
   let userApiKey = localStorage.getItem(KEY_STORAGE) || '';
@@ -171,38 +169,47 @@
   function updateGenerateButtonState() {
     const hasKey = Boolean(userApiKey);
     const hasInput = inputText.value.trim().length > 0;
-    // 確保按鈕在有 key 且有內容時啟用
     generateBtn.disabled = !(hasKey && hasInput);
   }
 
   function setControlsDisabled(disabled) {
     controlElements.forEach(el => el.disabled = disabled);
-    keyInput.disabled = disabled; // 處理進行中不能更改 key
+    keyInput.disabled = disabled; 
     saveBtn.disabled = disabled;
     clearBtn.disabled = disabled;
   }
 
-  // === 修正 API Key 儲存邏輯 (問題 1 修正) ===
+  // === 
+  // === 修正 API Key 儲存邏輯：允許 _ 和 - 字符，以及 'proj-' ===
+  // ===
   saveBtn.addEventListener('click', () => {
-    // 如果輸入欄位是遮罩，代表使用者沒有輸入新的 Key，不做任何事
     const val = keyInput.value.trim();
+    
+    // 1. 如果輸入欄位是遮罩，且 userApiKey 已經存在，視為有效
     if (val === MASK && userApiKey) {
         keyHint.textContent = `✅ 金鑰未變更：sk-****${userApiKey.slice(-4)}（已儲存）`;
         return; 
     }
     
-    if (!/^sk-[A-Za-z0-9]{20,}/.test(val)) {
-      keyHint.innerHTML = '<span class="warn">請輸入正確格式的 API Key（開頭為 sk-），儲存失敗。</span>';
+    // 2. 設置新的、更寬容的正規表達式 (Regex)
+    // 允許 sk- 或 sk-proj- 開頭，後面跟隨字母、數字、下劃線、連字符
+    // 且 Key 的主體（非前缀）至少 40 個字符長
+    const API_KEY_REGEX = /^sk-(proj-)?[a-zA-Z0-9_-]{40,}$/;
+
+    if (!API_KEY_REGEX.test(val)) {
+      // 檢查失敗，顯示錯誤
+      keyHint.innerHTML = '<span class="warn">請檢查 API Key 格式是否正確（必須以 sk- 或 sk-proj- 開頭），儲存失敗。</span>';
       return;
     }
     
-    // 儲存成功
+    // 3. 儲存成功
     localStorage.setItem(KEY_STORAGE, val);
     userApiKey = val;
     keyInput.value = MASK;
     keyHint.textContent = `✅ API Key 已儲存於瀏覽器：sk-****${userApiKey.slice(-4)}`;
     updateGenerateButtonState();
   });
+
 
   clearBtn.addEventListener('click', () => {
     localStorage.removeItem(KEY_STORAGE);
@@ -213,19 +220,18 @@
     updateGenerateButtonState();
   });
 
-  // === OpenAI 呼叫（/v1/chat/completions 串接檢查 - 問題 3 檢查） ===
+  // === OpenAI 呼叫（/v1/chat/completions） ===
   async function callChatCompletions({ model, prompt, signal }) {
     const MAX_RETRY = 3;
     let attempt = 0;
     let lastErr;
     
-    // 根據 prompt 內容判斷 System Role
     let systemMessageContent = '你是一個有幫助、專業的助理。';
     
     const promptLines = prompt.split('\n');
     if (promptLines[0].startsWith('你是')) {
         systemMessageContent = promptLines[0];
-        prompt = promptLines.slice(1).join('\n').trim(); // 移除第一行作為 User Content
+        prompt = promptLines.slice(1).join('\n').trim(); 
     }
     
     const messages = [
@@ -239,11 +245,11 @@
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${userApiKey}`, // 檢查：Authorization Header 正確
+            'Authorization': `Bearer ${userApiKey}`, 
           },
           body: JSON.stringify({
             model,
-            messages, // 檢查：messages 結構正確
+            messages, 
             temperature: 0.7,
             stream: false,
           }),
@@ -256,7 +262,7 @@
 
         if (!res.ok) {
           const msg = data?.error?.message || raw || `HTTP ${res.status}`;
-          if (res.status === 429) { // 檢查：429 重試機制正確
+          if (res.status === 429) { 
             const backoff = Math.min(2000 * (attempt + 1), 8000);
             await new Promise(r => setTimeout(r, backoff));
             attempt++;
@@ -266,7 +272,6 @@
           throw new Error(`HTTP ${res.status} ${res.statusText}｜${msg}`);
         }
 
-        // 檢查：回應解析路徑正確
         const textOut = data?.choices?.[0]?.message?.content || ''; 
         return textOut;
       } catch (e) {
@@ -295,7 +300,7 @@ ${task}
 ${sourceText}`;
   }
 
-  // === 生成主流程 (問題 2 移除摘要) ===
+  // === 生成主流程 (已移除摘要) ===
   generateBtn.addEventListener('click', async () => {
     const raw = inputText.value.trim();
     if (!raw) {
@@ -307,7 +312,6 @@ ${sourceText}`;
         return;
     }
     
-    // 檢查字數是否超出建議限制
     if (raw.length > INPUT_CHAR_LIMIT) {
         if (!confirm(`警告：您貼上的內容 (${raw.length} 字) 已超出建議限制 (${INPUT_CHAR_LIMIT} 字)。\n\n由於已移除自動摘要功能，直接傳送給模型可能會因為 Token 數超限而失敗。確定要繼續嗎？`)) {
             sysMsg.textContent = '生成已取消。請精簡內容後再試。';
@@ -315,7 +319,7 @@ ${sourceText}`;
         }
     }
 
-    setControlsDisabled(true); // 禁用所有控制項
+    setControlsDisabled(true); 
     output.textContent = '⏳ 正在生成中... (請耐心等待)';
     sysMsg.textContent = 'AI 正在撰寫腳本…';
     
@@ -326,7 +330,6 @@ ${sourceText}`;
     const timeout = setTimeout(() => ac.abort(), USE_TIMEOUT_MS);
 
     try {
-      // 直接生成腳本，不經過摘要
       const scriptPrompt = buildScriptPrompt(mode, raw);
       const result = await callChatCompletions({ model, prompt: scriptPrompt, signal: ac.signal });
 
@@ -354,7 +357,7 @@ ${sourceText}`;
     }
   });
 
-  // === 複製 / 下載（保持不變） ===
+  // === 複製 / 下載 ===
   el('btnCopy').addEventListener('click', async () => {
     const text = output.textContent;
     if (!text || text.startsWith('❌ 錯誤')) {
