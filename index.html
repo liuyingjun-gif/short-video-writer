@@ -105,7 +105,7 @@
   // === 可調整上限（以「字元」估算，CJK 常接近 token 數量） ===
   const INPUT_CHAR_LIMIT = 12000; // 顯示的最大建議輸入長度
   const CHUNK_SIZE = 3000;        // 分段摘要時每段大小
-  const SUMMARY_TARGET_CHARS = 1500; // 單段摘要期望長度
+  const SUMMARY_TARGET_CHARS = 300; // 單段摘要期望長度（依使用者要求，每段 300 字內）
   const USE_TIMEOUT_MS = 120_000;
 
   // === 金鑰儲存 ===
@@ -181,30 +181,54 @@
 
   // === OpenAI 呼叫（使用 Responses API） ===
   async function callResponsesAPI({ model, input, signal }) {
-    const res = await fetch('https://api.openai.com/v1/responses', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${userApiKey}`,
-      },
-      body: JSON.stringify({ model, input, temperature: 0.7 }),
-      signal
-    });
+    const MAX_RETRY = 3;
+    let attempt = 0;
+    let lastErr;
+    while (attempt < MAX_RETRY) {
+      try {
+        const res = await fetch('https://api.openai.com/v1/responses', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${userApiKey}`,
+          },
+          body: JSON.stringify({ model, input, temperature: 0.7 }),
+          signal
+        });
 
-    const raw = await res.text();
-    let data;
-    try { data = JSON.parse(raw); } catch { data = null; }
+        const raw = await res.text();
+        let data;
+        try { data = JSON.parse(raw); } catch { data = null; }
 
-    if (!res.ok) {
-      const msg = data?.error?.message || raw || `HTTP ${res.status}`;
-      throw new Error(`HTTP ${res.status} ${res.statusText}｜${msg}`);
+        if (!res.ok) {
+          const msg = data?.error?.message || raw || `HTTP ${res.status}`;
+          // 若是 429（流量/額度），實施退避重試
+          if (res.status === 429) {
+            const backoff = Math.min(2000 * (attempt + 1), 8000);
+            await new Promise(r => setTimeout(r, backoff));
+            attempt++;
+            lastErr = new Error(`HTTP 429｜${msg}`);
+            continue;
+          }
+          throw new Error(`HTTP ${res.status} ${res.statusText}｜${msg}`);
+        }
+
+        const textOut = data?.output_text
+          || data?.content?.[0]?.text
+          || data?.choices?.[0]?.message?.content
+          || '';
+        return textOut;
+      } catch (e) {
+        // 若是 abort 或網路錯誤，直接拋出
+        if (e.name === 'AbortError') throw e;
+        lastErr = e;
+        // 其他錯誤稍作延遲後重試
+        const backoff = Math.min(1500 * (attempt + 1), 6000);
+        await new Promise(r => setTimeout(r, backoff));
+        attempt++;
+      }
     }
-
-    const textOut = data?.output_text
-      || data?.content?.[0]?.text
-      || data?.choices?.[0]?.message?.content
-      || '';
-    return textOut;
+    throw lastErr || new Error('呼叫失敗，請稍後再試');
   }
 
   // === 任務：摘要 ===
@@ -284,7 +308,7 @@
       sysMsg.textContent = '✅ 已完成';
     } catch (err) {
       output.textContent = '❌ 錯誤：' + (err?.message || err);
-      sysMsg.textContent = '發生錯誤（請查看瀏覽器 Console 與 Network）';
+      sysMsg.textContent = '發生錯誤（若為 429 表示達到用量或速率上限，請稍後重試或檢查金流與額度）';
       console.error(err);
     } finally {
       clearTimeout(timeout);
