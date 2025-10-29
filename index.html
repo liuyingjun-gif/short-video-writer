@@ -150,13 +150,13 @@
     <div class="card">
       <h2 class="text-2xl font-semibold mb-4 text-gray-800">第三步：選擇影片型態與模型</h2>
       
-      <div class="space-y-3 mb-5 p-5 bg-sky-50 rounded-lg border border-sky-100">
+            <div class="space-y-3 mb-6 p-5 bg-sky-50 rounded-lg border border-sky-100">
         <label class="flex items-start gap-3 cursor-pointer">
-          <input type="radio" name="mode" value="podcast" checked class="mt-1 accent-sky-600">
+          <input type="radio" name="mode" value="podcast" class="mt-1 accent-sky-600">
           <span><strong>Podcast 一鏡到底型：</strong>提供 5 段 45–75 秒重點片段</span>
         </label>
         <label class="flex items-start gap-3 cursor-pointer">
-          <input type="radio" name="mode" value="topic" class="mt-1 accent-sky-600">
+          <input type="radio" name="mode" value="topic" checked class="mt-1 accent-sky-600">
           <span><strong>議題型：</strong>3 段 45–75 秒旁白腳本 + 建議畫面</span>
         </label>
         <label class="flex items-start gap-3 cursor-pointer">
@@ -165,11 +165,33 @@
         </label>
       </div>
 
-      <div class="flex flex-wrap items-center gap-4 pt-5 mt-5 border-t border-gray-200">
+            <div class="flex flex-col sm:flex-row gap-4 mb-6 p-5 bg-indigo-50 rounded-lg border border-indigo-100">
+        <div class="flex-1">
+          <label for="targetAudience" class="block text-sm font-medium text-gray-700 mb-2">目標受眾：</label>
+          <select id="targetAudience" class="input-style text-sm w-full">
+            <option value="一般大眾" selected>一般大眾 (預設)</option>
+            <option value="學生/青少年">學生/青少年 (口語化、貼近生活)</option>
+            <option value="老師/教育工作者">老師/教育工作者 (結構化、專業)</option>
+            <option value="家長/親子關係">家長/親子關係 (情感、實用建議)</option>
+            <option value="商業人士/專業領域">商業人士/專業領域 (精準、商業化)</option>
+          </select>
+        </div>
+        <div class="flex-1">
+          <label for="scriptTone" class="block text-sm font-medium text-gray-700 mb-2">腳本語氣/風格：</label>
+          <select id="scriptTone" class="input-style text-sm w-full">
+            <option value="中性專業" selected>中性專業 (預設)</option>
+            <option value="熱情有趣">熱情有趣 (活潑、幽默)</option>
+            <option value="深度感人">深度感人 (情感、啟發)</option>
+            <option value="新聞報導">新聞報導 (客觀、即時)</option>
+            <option value="資訊整理">資訊整理 (條列式、邏輯清晰)</option>
+          </select>
+        </div>
+      </div>
+            <div class="flex flex-wrap items-center gap-4 pt-5 mt-5 border-t border-gray-200">
         <label class="text-sm text-gray-700 font-medium">選擇模型：</label>
         <select id="modelSelect" class="input-style text-sm">
           <optgroup label="OpenAI (需要 sk- Key)">
-            <option value="openai:gpt-4o-mini" selected>GPT-4o mini（建議）</option>
+            <option value="openai:gpt-4o-mini" selected>GPT-4o mini（建議）</option> 
             <option value="openai:gpt-4o">GPT-4o（高階推理）</option>
             <option value="openai:gpt-3.5-turbo">GPT-3.5 Turbo（低成本）</option>
           </optgroup>
@@ -236,11 +258,14 @@
   const charRemain = el('charRemain');
   const modeRadios = document.querySelectorAll('input[name="mode"]');
 
-  // 【修改 3/4】: 新增檔案上傳的 DOM 引用
+  // 【新增】進階選項的 DOM 引用
+  const targetAudience = el('targetAudience');
+  const scriptTone = el('scriptTone');
+
   const fileUpload = el('fileUpload');
   const fileUploadHint = el('fileUploadHint');
 
-  const controlElements = [generateBtn, modelSelect, inputText, ...modeRadios];
+  const controlElements = [generateBtn, modelSelect, inputText, ...modeRadios, targetAudience, scriptTone]; // 更新控制元素列表
 
   // === 狀態初始化 ===
   let userOpenAIKey = localStorage.getItem(KEY_OPENAI) || '';
@@ -391,7 +416,7 @@
     updateGenerateButtonState();
   });
 
-  // === 【新增】檔案上傳處理 ===
+  // === 檔案上傳處理 ===
   function handleFileUpload(event) {
     const file = event.target.files[0];
     if (!file) {
@@ -533,21 +558,33 @@
     throw lastErr || new Error('呼叫失敗，請檢查網路連線或稍後再試');
   }
 
-  // === 【修改 4/4】: 更新任務腳本 ===
+  // === 更新任務腳本以納入進階選項 ===
   function buildScriptPrompt(mode, sourceText) {
-    const base = '你是一個專門協助數位影音企劃的助理，使用者的主要對象是影音編輯與企劃同事。目標是接收使用者提供的文字內容或檔案，根據不同需求快速產出對應的成品。常見的任務包括：為文章或節目取標題、整理摘要重點、整理錄音逐字稿，最後生成短影音腳本。請用繁體中文撰寫。請優先使用 Markdown 表格 (table) 格式來組織你的輸出內容。';
-    let task = '';
-    if (mode === 'podcast') task = '請選出 5 段 45–75 秒可一鏡到底的重點片段，附時間碼與重點，內容基於以下原文。';
-    else if (mode === 'topic') task = '請寫出 3 段 45–75 秒議題型旁白腳本 + 建議畫面，內容基於以下原文。';
-    else task = '請寫出 3 段 45–75 秒人物故事型腳本，包含原音摘錄、大意與建議畫面，內容基於以下原文。';
+    // 1. 取得進階選項的值
+    const audience = targetAudience.value;
+    const tone = scriptTone.value;
+
+    // 2. 設定基礎提示詞 (System Message)
+    let base = `你是一個專門協助數位影音企劃的助理，使用者的主要對象是影音編輯與企劃同事。目標是接收使用者提供的文字內容或檔案，根據不同需求快速產出對應的成品。請用繁體中文撰寫。請優先使用 Markdown 表格 (table) 格式來組織你的輸出內容。`;
     
-    return `${base}${task}
+    // 3. 根據影片型態調整任務
+    let task = '';
+    if (mode === 'podcast') task = '請選出 5 段 45–75 秒可一鏡到底的重點片段，附時間碼與重點。';
+    else if (mode === 'topic') task = '請寫出 3 段 45–75 秒議題型旁白腳本 + 建議畫面。';
+    else task = '請寫出 3 段 45–75 秒人物故事型腳本，包含原音摘錄、大意與建議畫面。';
+    
+    // 4. 整合進階選項到任務中
+    const instruction = `請根據以下【原文】內容，完成上述任務。同時，**請確保腳本是為【目標受眾: ${audience}】撰寫，並使用【語氣/風格: ${tone}】來呈現。**`;
+
+    return `${base}
+${task}
+${instruction}
 
 【原文】
 ${sourceText}`;
   }
 
-  // === 生成主流程 ===
+  // === 生成主流程 (不變) ===
   generateBtn.addEventListener('click', async () => {
     showCopyMessage('', false); 
   
@@ -623,7 +660,7 @@ ${sourceText}`;
     }
   });
 
-  // === 複製 / 下載 ===
+  // === 複製 / 下載 (不變) ===
   el('btnCopy').addEventListener('click', async () => {
     const html = output.innerHTML;
     const text = output.textContent; // 備用的純文字
