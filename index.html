@@ -1,862 +1,918 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AI 短影音腳本生成器 Pro (v3.3 Gemini 3 Ready)</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <style>
-    /* === 全域設定 === */
-    body { 
-        font-family: 'Plus Jakarta Sans', 'Noto Sans TC', sans-serif; 
-        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-        background-attachment: fixed;
-        color: #1e293b; 
-        line-height: 1.6;
-    }
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1" />
+ <title>AI 短影音腳本生成器 Pro (v3.3 Gemini 3 Ready)</title>
+ <link rel="preconnect" href="https://fonts.googleapis.com">
+ <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+ <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+ <script src="https://cdn.tailwindcss.com"></script>
+ <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+ <style>
+   /* === 全域設定 === */
+   body {
+       font-family: 'Plus Jakarta Sans', 'Noto Sans TC', sans-serif;
+       background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+       background-attachment: fixed;
+       color: #1e293b;
+       line-height: 1.6;
+   }
 
-    /* === 卡片與容器 === */
-    .main-container {
-        background: rgba(255, 255, 255, 0.9);
-        backdrop-filter: blur(12px);
-        border-radius: 1.5rem;
-        box-shadow: 0 20px 40px -5px rgba(0, 0, 0, 0.1), 0 10px 20px -5px rgba(0, 0, 0, 0.04);
-        border: 1px solid rgba(255, 255, 255, 0.6);
-    }
 
-    .card-section {
-        position: relative;
-        background: #ffffff;
-        border-radius: 1rem;
-        padding: 1.5rem;
-        border: 1px solid #e2e8f0;
-        transition: all 0.2s ease;
-    }
-    .card-section:hover {
-        border-color: #cbd5e1;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-    }
+   /* === 卡片與容器 === */
+   .main-container {
+       background: rgba(255, 255, 255, 0.9);
+       backdrop-filter: blur(12px);
+       border-radius: 1.5rem;
+       box-shadow: 0 20px 40px -5px rgba(0, 0, 0, 0.1), 0 10px 20px -5px rgba(0, 0, 0, 0.04);
+       border: 1px solid rgba(255, 255, 255, 0.6);
+   }
 
-    /* === 標題與文字 === */
-    h1, h2, h3 { letter-spacing: -0.025em; }
-    .gradient-text {
-        background: linear-gradient(to right, #0ea5e9, #2563eb);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-    }
-    
-    /* === 輸入元件 === */
-    .input-style {
-        width: 100%;
-        padding: 0.75rem 1rem;
-        background-color: #f8fafc;
-        border: 1px solid #cbd5e1;
-        border-radius: 0.75rem;
-        font-size: 0.95rem;
-        transition: all 0.2s;
-    }
-    .input-style:focus {
-        background-color: #fff;
-        border-color: #3b82f6;
-        outline: none;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
-    }
-    .input-group-label {
-        font-size: 0.875rem;
-        font-weight: 600;
-        color: #475569;
-        margin-bottom: 0.5rem;
-        display: block;
-    }
 
-    /* === 按鈕樣式 === */
-    .btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 0.75rem;
-        padding: 0.6rem 1.2rem;
-        font-weight: 600;
-        font-size: 0.95rem;
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        cursor: pointer;
-        gap: 0.5rem;
-    }
-    .btn:active { transform: scale(0.98); }
-    
-    .btn-primary {
-        background: linear-gradient(to right, #0ea5e9, #2563eb);
-        color: white;
-        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
-        border: 1px solid transparent;
-    }
-    .btn-primary:hover:not(:disabled) {
-        box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
-        filter: brightness(1.1);
-    }
-    .btn-ghost {
-        background: white;
-        color: #475569;
-        border: 1px solid #cbd5e1;
-    }
-    .btn-ghost:hover:not(:disabled) {
-        background: #f1f5f9;
-        color: #1e293b;
-        border-color: #94a3b8;
-    }
-    .btn:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-        filter: grayscale(0.5);
-    }
+   .card-section {
+       position: relative;
+       background: #ffffff;
+       border-radius: 1rem;
+       padding: 1.5rem;
+       border: 1px solid #e2e8f0;
+       transition: all 0.2s ease;
+   }
+   .card-section:hover {
+       border-color: #cbd5e1;
+       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+   }
 
-    /* === 輸出區域 (Markdown) === */
-    .output-container {
-        background: #0f172a; /* 深色背景 */
-        color: #e2e8f0;
-        border-radius: 1rem;
-        padding: 2rem;
-        overflow-x: auto;
-        border: 1px solid #334155;
-        font-size: 0.95rem;
-        line-height: 1.7;
-    }
-    
-    /* 表格優化 - 類似 Notion/Excel */
-    .markdown-output table {
-        width: 100%;
-        border-collapse: separate;
-        border-spacing: 0;
-        margin: 1.5rem 0;
-        border: 1px solid #334155;
-        border-radius: 0.5rem;
-        overflow: hidden;
-    }
-    .markdown-output th {
-        background-color: #1e293b;
-        color: #f8fafc;
-        font-weight: 600;
-        padding: 1rem;
-        text-align: left;
-        border-bottom: 2px solid #334155;
-    }
-    .markdown-output td {
-        padding: 0.875rem 1rem;
-        border-bottom: 1px solid #334155;
-        vertical-align: top;
-    }
-    .markdown-output tr:last-child td { border-bottom: none; }
-    .markdown-output tr:nth-child(even) { background-color: rgba(255,255,255,0.03); }
-    .markdown-output tr:hover { background-color: rgba(255,255,255,0.05); }
-    
-    /* Markdown 標題 */
-    .markdown-output h1, .markdown-output h2, .markdown-output h3 {
-        color: #38bdf8;
-        margin-top: 2rem;
-        margin-bottom: 1rem;
-        font-weight: 700;
-    }
-    .markdown-output strong { color: #fff; font-weight: 700; }
 
-    /* === 其他工具類 === */
-    .loading-spinner {
-        width: 1.25rem;
-        height: 1.25rem;
-        border: 2px solid #ffffff;
-        border-bottom-color: transparent;
-        border-radius: 50%;
-        display: inline-block;
-        box-sizing: border-box;
-        animation: rotation 1s linear infinite;
-    }
-    @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    
-    .warn-text { color: #ef4444; font-weight: 600; }
-    .success-text { color: #10b981; font-weight: 600; }
-    .file-upload-wrapper:hover { border-color: #3b82f6; background-color: #f0f9ff; }
-    
-    /* 自定義 Radio 選擇區 */
-    .radio-card-group { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
-    .radio-card {
-        position: relative;
-        cursor: pointer;
-    }
-    .radio-card input { position: absolute; opacity: 0; }
-    .radio-card-content {
-        display: flex;
-        flex-direction: column;
-        padding: 1rem;
-        border: 2px solid #e2e8f0;
-        border-radius: 0.75rem;
-        transition: all 0.2s;
-        height: 100%;
-    }
-    .radio-card input:checked + .radio-card-content {
-        border-color: #3b82f6;
-        background-color: #eff6ff;
-        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
-    }
-    .radio-card-title { font-weight: 700; color: #1e293b; margin-bottom: 0.25rem; }
-    .radio-card-desc { font-size: 0.85rem; color: #64748b; line-height: 1.4; }
-  </style>
+   /* === 標題與文字 === */
+   h1, h2, h3 { letter-spacing: -0.025em; }
+   .gradient-text {
+       background: linear-gradient(to right, #0ea5e9, #2563eb);
+       -webkit-background-clip: text;
+       -webkit-text-fill-color: transparent;
+   }
+  
+   /* === 輸入元件 === */
+   .input-style {
+       width: 100%;
+       padding: 0.75rem 1rem;
+       background-color: #f8fafc;
+       border: 1px solid #cbd5e1;
+       border-radius: 0.75rem;
+       font-size: 0.95rem;
+       transition: all 0.2s;
+   }
+   .input-style:focus {
+       background-color: #fff;
+       border-color: #3b82f6;
+       outline: none;
+       box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+   }
+   .input-group-label {
+       font-size: 0.875rem;
+       font-weight: 600;
+       color: #475569;
+       margin-bottom: 0.5rem;
+       display: block;
+   }
+
+
+   /* === 按鈕樣式 === */
+   .btn {
+       display: inline-flex;
+       align-items: center;
+       justify-content: center;
+       border-radius: 0.75rem;
+       padding: 0.6rem 1.2rem;
+       font-weight: 600;
+       font-size: 0.95rem;
+       transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+       cursor: pointer;
+       gap: 0.5rem;
+   }
+   .btn:active { transform: scale(0.98); }
+  
+   .btn-primary {
+       background: linear-gradient(to right, #0ea5e9, #2563eb);
+       color: white;
+       box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+       border: 1px solid transparent;
+   }
+   .btn-primary:hover:not(:disabled) {
+       box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+       filter: brightness(1.1);
+   }
+   .btn-ghost {
+       background: white;
+       color: #475569;
+       border: 1px solid #cbd5e1;
+   }
+   .btn-ghost:hover:not(:disabled) {
+       background: #f1f5f9;
+       color: #1e293b;
+       border-color: #94a3b8;
+   }
+   .btn:disabled {
+       opacity: 0.6;
+       cursor: not-allowed;
+       filter: grayscale(0.5);
+   }
+
+
+   /* === 輸出區域 (Markdown) === */
+   .output-container {
+       background: #0f172a; /* 深色背景 */
+       color: #e2e8f0;
+       border-radius: 1rem;
+       padding: 2rem;
+       overflow-x: auto;
+       border: 1px solid #334155;
+       font-size: 0.95rem;
+       line-height: 1.7;
+   }
+  
+   /* 表格優化 - 類似 Notion/Excel */
+   .markdown-output table {
+       width: 100%;
+       border-collapse: separate;
+       border-spacing: 0;
+       margin: 1.5rem 0;
+       border: 1px solid #334155;
+       border-radius: 0.5rem;
+       overflow: hidden;
+   }
+   .markdown-output th {
+       background-color: #1e293b;
+       color: #f8fafc;
+       font-weight: 600;
+       padding: 1rem;
+       text-align: left;
+       border-bottom: 2px solid #334155;
+   }
+   .markdown-output td {
+       padding: 0.875rem 1rem;
+       border-bottom: 1px solid #334155;
+       vertical-align: top;
+   }
+   .markdown-output tr:last-child td { border-bottom: none; }
+   .markdown-output tr:nth-child(even) { background-color: rgba(255,255,255,0.03); }
+   .markdown-output tr:hover { background-color: rgba(255,255,255,0.05); }
+  
+   /* Markdown 標題 */
+   .markdown-output h1, .markdown-output h2, .markdown-output h3 {
+       color: #38bdf8;
+       margin-top: 2rem;
+       margin-bottom: 1rem;
+       font-weight: 700;
+   }
+   .markdown-output strong { color: #fff; font-weight: 700; }
+
+
+   /* === 其他工具類 === */
+   .loading-spinner {
+       width: 1.25rem;
+       height: 1.25rem;
+       border: 2px solid #ffffff;
+       border-bottom-color: transparent;
+       border-radius: 50%;
+       display: inline-block;
+       box-sizing: border-box;
+       animation: rotation 1s linear infinite;
+   }
+   @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  
+   .warn-text { color: #ef4444; font-weight: 600; }
+   .success-text { color: #10b981; font-weight: 600; }
+   .file-upload-wrapper:hover { border-color: #3b82f6; background-color: #f0f9ff; }
+  
+   /* 自定義 Radio 選擇區 */
+   .radio-card-group { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+   .radio-card {
+       position: relative;
+       cursor: pointer;
+   }
+   .radio-card input { position: absolute; opacity: 0; }
+   .radio-card-content {
+       display: flex;
+       flex-direction: column;
+       padding: 1rem;
+       border: 2px solid #e2e8f0;
+       border-radius: 0.75rem;
+       transition: all 0.2s;
+       height: 100%;
+   }
+   .radio-card input:checked + .radio-card-content {
+       border-color: #3b82f6;
+       background-color: #eff6ff;
+       box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+   }
+   .radio-card-title { font-weight: 700; color: #1e293b; margin-bottom: 0.25rem; }
+   .radio-card-desc { font-size: 0.85rem; color: #64748b; line-height: 1.4; }
+ </style>
 </head>
 <body class="min-h-screen py-10 px-4">
 
-  <header class="max-w-5xl mx-auto mb-8 text-center">
-    <h1 class="text-4xl sm:text-5xl font-extrabold mb-3 gradient-text">AI 短影音腳本生成器 Pro</h1>
-    <p class="text-gray-600 font-medium text-lg">整合最新 Gemini 3 Pro (Preview) 與 OpenAI</p>
-  </header>
 
-  <main class="max-w-5xl mx-auto main-container p-6 sm:p-8 space-y-8">
-    
-    <!-- Step 1: API Key -->
-    <section class="space-y-4">
-      <div class="flex items-center gap-2 mb-2">
-        <span class="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded-md">STEP 01</span>
-        <h2 class="text-xl font-bold text-slate-800">設定 API 金鑰</h2>
-      </div>
-      <div class="card-section grid md:grid-cols-2 gap-6">
-        
-        <!-- OpenAI -->
-        <div>
-          <label class="input-group-label flex justify-between">
-            <span>OpenAI API Key</span>
-            <span class="text-xs font-normal text-gray-400 bg-gray-100 px-2 py-0.5 rounded">sk-開頭</span>
-          </label>
-          <div class="flex gap-2">
-            <input id="openaiApiKey" type="password" placeholder="sk-..." class="input-style flex-1">
-            <button id="btnSaveOpenAIKey" class="btn btn-ghost px-3 text-sm">儲存</button>
-            <button id="btnClearOpenAIKey" class="btn btn-ghost px-3 text-sm text-red-500 hover:text-red-600">清除</button>
-          </div>
-          <p id="openaiKeyHint" class="text-xs text-gray-500 mt-2 h-4"></p>
-        </div>
+ <header class="max-w-5xl mx-auto mb-8 text-center">
+   <h1 class="text-4xl sm:text-5xl font-extrabold mb-3 gradient-text">AI 短影音腳本生成器 Pro</h1>
+   <p class="text-gray-600 font-medium text-lg">整合最新 Gemini 與 OpenAI</p>
+ </header>
 
-        <!-- Gemini -->
-        <div>
-          <label class="input-group-label flex justify-between">
-            <span>Gemini API Key</span>
-            <span class="text-xs font-normal text-gray-400 bg-gray-100 px-2 py-0.5 rounded">AIza 開頭</span>
-          </label>
-          <div class="flex gap-2">
-            <input id="geminiApiKey" type="password" placeholder="AIza..." class="input-style flex-1">
-            <button id="btnSaveGeminiKey" class="btn btn-ghost px-3 text-sm">儲存</button>
-            <button id="btnClearGeminiKey" class="btn btn-ghost px-3 text-sm text-red-500 hover:text-red-600">清除</button>
-          </div>
-          <p id="geminiKeyHint" class="text-xs text-gray-500 mt-2 h-4"></p>
-        </div>
-      </div>
-    </section>
 
-    <!-- Step 2: 輸入內容 -->
-    <section class="space-y-4">
-        <div class="flex items-center gap-2 mb-2">
-            <span class="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded-md">STEP 02</span>
-            <h2 class="text-xl font-bold text-slate-800">輸入素材內容</h2>
-        </div>
-        
-        <div class="card-section space-y-4">
-            <!-- 檔案上傳區 -->
-            <div class="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center transition-colors file-upload-wrapper relative">
-                <input type="file" id="fileUpload" accept=".txt,.srt" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
-                <div class="space-y-2">
-                    <div class="mx-auto w-10 h-10 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-                        </svg>
-                    </div>
-                    <p class="text-sm font-medium text-gray-700">點擊上傳 .txt 或 .srt 檔案，或直接拖曳至此</p>
-                    <p id="fileUploadHint" class="text-xs text-gray-500">支援格式：純文字、字幕檔</p>
-                </div>
-            </div>
-
-            <!-- 文字輸入區 -->
-            <div>
-                <div class="flex justify-between items-end mb-2">
-                    <label for="inputText" class="input-group-label mb-0">或直接貼上逐字稿/文章：</label>
-                    <div class="text-xs text-gray-500">
-                        字數：<span id="charCount" class="font-mono font-bold text-blue-600">0</span> 
-                        <span class="text-gray-300 mx-1">/</span> 
-                        <!-- 更新：初始顯示 80,000 -->
-                        剩餘：<span id="charRemain" class="font-mono">80,000</span>
-                    </div>
-                </div>
-                <textarea id="inputText" rows="8" class="input-style font-mono text-sm leading-relaxed resize-y" placeholder="請在此貼上內容..."></textarea>
-            </div>
-        </div>
-    </section>
-
-    <!-- Step 3: 設定與生成 -->
-    <section class="space-y-4">
-        <div class="flex items-center gap-2 mb-2">
-            <span class="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded-md">STEP 03</span>
-            <h2 class="text-xl font-bold text-slate-800">選擇風格與模型</h2>
-        </div>
-
-        <div class="card-section space-y-6">
-            <!-- 影片類型選擇 -->
-            <div>
-                <label class="input-group-label mb-3">影片類型</label>
-                <div class="radio-card-group">
-                    <label class="radio-card">
-                        <input type="radio" name="mode" value="topic" checked>
-                        <div class="radio-card-content">
-                            <div class="radio-card-title">💡 議題型短片</div>
-                            <div class="radio-card-desc">適合知識分享、新聞解說。包含旁白與建議畫面。</div>
-                        </div>
-                    </label>
-                    <label class="radio-card">
-                        <input type="radio" name="mode" value="people">
-                        <div class="radio-card-content">
-                            <div class="radio-card-title">🗣️ 人物故事型</div>
-                            <div class="radio-card-desc">適合訪談精華。包含原音摘錄、大意與畫面。</div>
-                        </div>
-                    </label>
-                    <label class="radio-card">
-                        <input type="radio" name="mode" value="podcast">
-                        <div class="radio-card-content">
-                            <div class="radio-card-title">🎙️ Podcast 剪輯</div>
-                            <div class="radio-card-desc">快速找出 5 段 45-75 秒的一鏡到底重點片段。</div>
-                        </div>
-                    </label>
-                    <!-- 新增：行銷短影音 -->
-                    <label class="radio-card">
-                        <input type="radio" name="mode" value="marketing">
-                        <div class="radio-card-content">
-                            <div class="radio-card-title">📢 行銷短影音</div>
-                            <div class="radio-card-desc">適合推廣線上課程、新書或訂閱制。包含痛點、解決方案與CTA。</div>
-                        </div>
-                    </label>
-                </div>
-            </div>
-
-            <!-- 進階選項 -->
-            <div class="grid sm:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
-                <div>
-                    <label for="targetAudience" class="input-group-label">目標受眾</label>
-                    <div class="relative">
-                        <select id="targetAudience" class="input-style appearance-none cursor-pointer">
-                            <option value="一般大眾" selected>一般大眾 (預設)</option>
-                            <option value="學生/青少年">學生/青少年 (口語化)</option>
-                            <option value="老師/教育工作者">老師/教育工作者 (結構化)</option>
-                            <option value="家長/親子關係">家長/親子關係 (情感訴求)</option>
-                            <option value="商業人士/專業領域">商業人士 (精準效率)</option>
-                        </select>
-                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                        </div>
-                    </div>
-                </div>
-                <div>
-                    <label for="scriptTone" class="input-group-label">腳本語氣</label>
-                    <div class="relative">
-                        <select id="scriptTone" class="input-style appearance-none cursor-pointer">
-                            <option value="中性專業" selected>中性專業 (預設)</option>
-                            <option value="熱情有趣">熱情有趣 (活潑幽默)</option>
-                            <option value="深度感人">深度感人 (情感啟發)</option>
-                            <option value="新聞報導">新聞報導 (客觀即時)</option>
-                            <option value="資訊整理">資訊整理 (條列邏輯)</option>
-                        </select>
-                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <hr class="border-gray-100">
-
-            <!-- 模型選擇與按鈕 -->
-            <div class="flex flex-col sm:flex-row gap-4 items-end">
-                <div class="flex-1 w-full">
-                    <label for="modelSelect" class="input-group-label">選擇 AI 模型</label>
-                    <div class="relative">
-                        <select id="modelSelect" class="input-style appearance-none cursor-pointer font-medium text-slate-700">
-                            <optgroup label="OpenAI (需 sk- Key)">
-                                <option value="openai:gpt-4o-mini" selected>GPT-4o mini (推薦：快速且便宜)</option>
-                                <option value="openai:gpt-4o">GPT-4o (高階推理)</option>
-                                <option value="openai:gpt-3.5-turbo">GPT-3.5 Turbo</option>
-                            </optgroup>
-                            <optgroup label="Google Gemini (需 AIza Key)">
-                                <!-- 更新：修正 Gemini 模型 ID 以符合 2025 年最新 API 標準 -->
-                                <option value="gemini:gemini-2.5-flash" selected>Gemini 2.5 Flash (最新穩定版)</option>
-                                <option value="gemini:gemini-2.5-pro">Gemini 2.5 Pro (進階推理 Stable)</option>
-                                <option value="gemini:gemini-3-pro-preview">Gemini 3 Pro (預覽版/思考型)</option>
-                                <option value="gemini:gemini-1.5-pro-latest">Gemini 1.5 Pro (舊版備援)</option>
-                            </optgroup>
-                        </select>
-                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                        </div>
-                    </div>
-                </div>
-                <button id="btnGenerate" class="btn btn-primary w-full sm:w-auto py-3 px-8 text-lg shadow-lg shadow-blue-500/30" disabled>
-                    <span id="btnIcon">✨</span>
-                    <span>確認生成腳本</span>
-                </button>
-            </div>
-            <p id="sysMsg" class="text-sm text-center sm:text-right text-gray-500 font-medium"></p>
-        </div>
-    </section>
-
-    <!-- 結果區 -->
-    <section class="space-y-4 pb-20">
-        <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
-            <div class="flex items-center gap-2">
-                <h2 class="text-xl font-bold text-slate-800">生成結果</h2>
-                <span id="copyMsg" class="text-sm font-medium transition-all"></span>
-            </div>
-            <div class="flex gap-2 w-full sm:w-auto">
-                <button id="btnCopy" class="btn btn-ghost text-sm flex-1 sm:flex-none">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                    複製結果
-                </button>
-                <button id="btnDownload" class="btn btn-ghost text-sm flex-1 sm:flex-none">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                    下載 .txt
-                </button>
-            </div>
-        </div>
-        
-        <div id="output" class="output-container markdown-output min-h-[200px]">
-            <div class="text-gray-500 text-center mt-10">
-                <p class="text-lg mb-2">👋 準備就緒</p>
-                <p class="text-sm opacity-75">請在上一步輸入 API Key 與素材內容，點擊生成按鈕。</p>
-            </div>
-        </div>
-    </section>
-
-  </main>
-
-  <script>
-  // === 配置參數 ===
-  // 更新：放寬上限至 80,000
-  const INPUT_CHAR_LIMIT = 80000; 
-  const USE_TIMEOUT_MS = 120_000; // 2分鐘超時
-
-  // === 狀態儲存鍵值 ===
-  const KEY_OPENAI = 'user_openai_key';
-  const KEY_GEMINI = 'user_gemini_key';
-  const MASK = '********';
-
-  // === DOM 元素引用 ===
-  const el = id => document.getElementById(id);
+ <main class="max-w-5xl mx-auto main-container p-6 sm:p-8 space-y-8">
   
+   <!-- Step 1: API Key -->
+   <section class="space-y-4">
+     <div class="flex items-center gap-2 mb-2">
+       <span class="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded-md">STEP 01</span>
+       <h2 class="text-xl font-bold text-slate-800">設定 API 金鑰</h2>
+     </div>
+     <div class="card-section grid md:grid-cols-2 gap-6">
+      
+       <!-- OpenAI -->
+       <div>
+         <label class="input-group-label flex justify-between">
+           <span>OpenAI API Key</span>
+           <span class="text-xs font-normal text-gray-400 bg-gray-100 px-2 py-0.5 rounded">sk-開頭</span>
+         </label>
+         <div class="flex gap-2">
+           <input id="openaiApiKey" type="password" placeholder="sk-..." class="input-style flex-1">
+           <button id="btnSaveOpenAIKey" class="btn btn-ghost px-3 text-sm">儲存</button>
+           <button id="btnClearOpenAIKey" class="btn btn-ghost px-3 text-sm text-red-500 hover:text-red-600">清除</button>
+         </div>
+         <p id="openaiKeyHint" class="text-xs text-gray-500 mt-2 h-4"></p>
+       </div>
+
+
+       <!-- Gemini -->
+       <div>
+         <label class="input-group-label flex justify-between">
+           <span>Gemini API Key</span>
+           <span class="text-xs font-normal text-gray-400 bg-gray-100 px-2 py-0.5 rounded">AIza 開頭</span>
+         </label>
+         <div class="flex gap-2">
+           <input id="geminiApiKey" type="password" placeholder="AIza..." class="input-style flex-1">
+           <button id="btnSaveGeminiKey" class="btn btn-ghost px-3 text-sm">儲存</button>
+           <button id="btnClearGeminiKey" class="btn btn-ghost px-3 text-sm text-red-500 hover:text-red-600">清除</button>
+         </div>
+         <p id="geminiKeyHint" class="text-xs text-gray-500 mt-2 h-4"></p>
+       </div>
+     </div>
+   </section>
+
+
+   <!-- Step 2: 輸入內容 -->
+   <section class="space-y-4">
+       <div class="flex items-center gap-2 mb-2">
+           <span class="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded-md">STEP 02</span>
+           <h2 class="text-xl font-bold text-slate-800">輸入素材內容</h2>
+       </div>
+      
+       <div class="card-section space-y-4">
+           <!-- 檔案上傳區 -->
+           <div class="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center transition-colors file-upload-wrapper relative">
+               <input type="file" id="fileUpload" accept=".txt,.srt" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
+               <div class="space-y-2">
+                   <div class="mx-auto w-10 h-10 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center">
+                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                           <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                       </svg>
+                   </div>
+                   <p class="text-sm font-medium text-gray-700">點擊上傳 .txt 或 .srt 檔案，或直接拖曳至此</p>
+                   <p id="fileUploadHint" class="text-xs text-gray-500">支援格式：純文字、字幕檔</p>
+               </div>
+           </div>
+
+
+           <!-- 文字輸入區 -->
+           <div>
+               <div class="flex justify-between items-end mb-2">
+                   <label for="inputText" class="input-group-label mb-0">或直接貼上逐字稿/文章：</label>
+                   <div class="text-xs text-gray-500">
+                       字數：<span id="charCount" class="font-mono font-bold text-blue-600">0</span>
+                       <span class="text-gray-300 mx-1">/</span>
+                       <!-- 更新：初始顯示 80,000 -->
+                       剩餘：<span id="charRemain" class="font-mono">80,000</span>
+                   </div>
+               </div>
+               <textarea id="inputText" rows="8" class="input-style font-mono text-sm leading-relaxed resize-y" placeholder="請在此貼上內容..."></textarea>
+           </div>
+       </div>
+   </section>
+
+
+   <!-- Step 3: 設定與生成 -->
+   <section class="space-y-4">
+       <div class="flex items-center gap-2 mb-2">
+           <span class="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded-md">STEP 03</span>
+           <h2 class="text-xl font-bold text-slate-800">選擇風格與模型</h2>
+       </div>
+
+
+       <div class="card-section space-y-6">
+           <!-- 影片類型選擇 -->
+           <div>
+               <label class="input-group-label mb-3">影片類型</label>
+               <div class="radio-card-group">
+                   <label class="radio-card">
+                       <input type="radio" name="mode" value="topic" checked>
+                       <div class="radio-card-content">
+                           <div class="radio-card-title">💡 議題型短片</div>
+                           <div class="radio-card-desc">適合知識分享、新聞解說。包含旁白與建議畫面。</div>
+                       </div>
+                   </label>
+                   <label class="radio-card">
+                       <input type="radio" name="mode" value="people">
+                       <div class="radio-card-content">
+                           <div class="radio-card-title">🗣️ 人物故事型</div>
+                           <div class="radio-card-desc">適合訪談精華。包含原音摘錄、大意與畫面。</div>
+                       </div>
+                   </label>
+                   <label class="radio-card">
+                       <input type="radio" name="mode" value="podcast">
+                       <div class="radio-card-content">
+                           <div class="radio-card-title">🎙️ Podcast 剪輯</div>
+                           <div class="radio-card-desc">快速找出 5 段 45-75 秒的一鏡到底重點片段。</div>
+                       </div>
+                   </label>
+                   <!-- 新增：行銷短影音 -->
+                   <label class="radio-card">
+                       <input type="radio" name="mode" value="marketing">
+                       <div class="radio-card-content">
+                           <div class="radio-card-title">📢 行銷短影音</div>
+                           <div class="radio-card-desc">適合推廣線上課程、新書或訂閱制。包含痛點、解決方案與CTA。</div>
+                       </div>
+                   </label>
+               </div>
+           </div>
+
+
+           <!-- 進階選項 -->
+           <div class="grid sm:grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
+               <div>
+                   <label for="targetAudience" class="input-group-label">目標受眾</label>
+                   <div class="relative">
+                       <select id="targetAudience" class="input-style appearance-none cursor-pointer">
+                           <option value="一般大眾" selected>一般大眾 (預設)</option>
+                           <option value="學生/青少年">學生/青少年 (口語化)</option>
+                           <option value="老師/教育工作者">老師/教育工作者 (結構化)</option>
+                           <option value="家長/親子關係">家長/親子關係 (情感訴求)</option>
+                           <option value="商業人士/專業領域">商業人士 (精準效率)</option>
+                       </select>
+                       <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
+                           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                       </div>
+                   </div>
+               </div>
+               <div>
+                   <label for="scriptTone" class="input-group-label">腳本語氣</label>
+                   <div class="relative">
+                       <select id="scriptTone" class="input-style appearance-none cursor-pointer">
+                           <option value="中性專業" selected>中性專業 (預設)</option>
+                           <option value="熱情有趣">熱情有趣 (活潑幽默)</option>
+                           <option value="深度感人">深度感人 (情感啟發)</option>
+                           <option value="新聞報導">新聞報導 (客觀即時)</option>
+                           <option value="資訊整理">資訊整理 (條列邏輯)</option>
+                       </select>
+                       <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
+                           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                       </div>
+                   </div>
+               </div>
+           </div>
+
+
+           <hr class="border-gray-100">
+
+
+           <!-- 模型選擇與按鈕 -->
+           <div class="flex flex-col sm:flex-row gap-4 items-end">
+               <div class="flex-1 w-full">
+                   <label for="modelSelect" class="input-group-label">選擇 AI 模型</label>
+                   <div class="relative">
+                       <select id="modelSelect" class="input-style appearance-none cursor-pointer font-medium text-slate-700">
+                           <optgroup label="OpenAI (需 sk- Key)">
+                               <option value="openai:gpt-4o-mini" selected>GPT-4o mini (推薦：快速且便宜)</option>
+                               <option value="openai:gpt-4o">GPT-4o (高階推理)</option>
+                               <option value="openai:gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                           </optgroup>
+                           <optgroup label="Google Gemini (需 AIza Key)">
+                               <!-- 更新：修正 Gemini 模型 ID 以符合 2025 年最新 API 標準 -->
+                               <option value="gemini:gemini-2.5-flash" selected>Gemini 2.5 Flash (最新穩定版)</option>
+                               <option value="gemini:gemini-2.5-pro">Gemini 2.5 Pro (進階推理 Stable)</option>
+                               <option value="gemini:gemini-3-pro-preview">Gemini 3 Pro (預覽版/思考型)</option>
+                               <option value="gemini:gemini-1.5-pro-latest">Gemini 1.5 Pro (舊版備援)</option>
+                           </optgroup>
+                       </select>
+                       <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
+                           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                       </div>
+                   </div>
+               </div>
+               <button id="btnGenerate" class="btn btn-primary w-full sm:w-auto py-3 px-8 text-lg shadow-lg shadow-blue-500/30" disabled>
+                   <span id="btnIcon">✨</span>
+                   <span>確認生成腳本</span>
+               </button>
+           </div>
+           <p id="sysMsg" class="text-sm text-center sm:text-right text-gray-500 font-medium"></p>
+       </div>
+   </section>
+
+
+   <!-- 結果區 -->
+   <section class="space-y-4 pb-20">
+       <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
+           <div class="flex items-center gap-2">
+               <h2 class="text-xl font-bold text-slate-800">生成結果</h2>
+               <span id="copyMsg" class="text-sm font-medium transition-all"></span>
+           </div>
+           <div class="flex gap-2 w-full sm:w-auto">
+               <button id="btnCopy" class="btn btn-ghost text-sm flex-1 sm:flex-none">
+                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                   複製結果
+               </button>
+               <button id="btnDownload" class="btn btn-ghost text-sm flex-1 sm:flex-none">
+                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                   下載 .txt
+               </button>
+           </div>
+       </div>
+      
+       <div id="output" class="output-container markdown-output min-h-[200px]">
+           <div class="text-gray-500 text-center mt-10">
+               <p class="text-lg mb-2">👋 準備就緒</p>
+               <p class="text-sm opacity-75">請在上一步輸入 API Key 與素材內容，點擊生成按鈕。</p>
+           </div>
+       </div>
+   </section>
+
+
+ </main>
+
+
+ <script>
+ // === 配置參數 ===
+ // 更新：放寬上限至 80,000
+ const INPUT_CHAR_LIMIT = 80000;
+ const USE_TIMEOUT_MS = 120_000; // 2分鐘超時
+
+
+ // === 狀態儲存鍵值 ===
+ const KEY_OPENAI = 'user_openai_key';
+ const KEY_GEMINI = 'user_gemini_key';
+ const MASK = '********';
+
+
+ // === DOM 元素引用 ===
+ const el = id => document.getElementById(id);
   const openaiKeyInput = el('openaiApiKey');
-  const btnSaveOpenAIKey = el('btnSaveOpenAIKey');
-  const btnClearOpenAIKey = el('btnClearOpenAIKey');
-  const openaiKeyHint = el('openaiKeyHint');
+ const btnSaveOpenAIKey = el('btnSaveOpenAIKey');
+ const btnClearOpenAIKey = el('btnClearOpenAIKey');
+ const openaiKeyHint = el('openaiKeyHint');
 
-  const geminiKeyInput = el('geminiApiKey');
-  const btnSaveGeminiKey = el('btnSaveGeminiKey');
-  const btnClearGeminiKey = el('btnClearGeminiKey');
-  const geminiKeyHint = el('geminiKeyHint');
-  
+
+ const geminiKeyInput = el('geminiApiKey');
+ const btnSaveGeminiKey = el('btnSaveGeminiKey');
+ const btnClearGeminiKey = el('btnClearGeminiKey');
+ const geminiKeyHint = el('geminiKeyHint');
   const generateBtn = el('btnGenerate');
-  const btnIcon = el('btnIcon');
-  const output = el('output');
-  const sysMsg = el('sysMsg');
-  const copyMsg = el('copyMsg'); 
-  
+ const btnIcon = el('btnIcon');
+ const output = el('output');
+ const sysMsg = el('sysMsg');
+ const copyMsg = el('copyMsg');
   const modelSelect = el('modelSelect');
-  const inputText = el('inputText');
-  const charCount = el('charCount'); 
-  const charRemain = el('charRemain');
-  const modeRadios = document.querySelectorAll('input[name="mode"]');
+ const inputText = el('inputText');
+ const charCount = el('charCount');
+ const charRemain = el('charRemain');
+ const modeRadios = document.querySelectorAll('input[name="mode"]');
 
-  const targetAudience = el('targetAudience');
-  const scriptTone = el('scriptTone');
 
-  const fileUpload = el('fileUpload');
-  const fileUploadHint = el('fileUploadHint');
+ const targetAudience = el('targetAudience');
+ const scriptTone = el('scriptTone');
 
-  const controlElements = [generateBtn, modelSelect, inputText, ...modeRadios, targetAudience, scriptTone];
 
-  // === 狀態初始化 ===
-  let userOpenAIKey = localStorage.getItem(KEY_OPENAI) || '';
-  let userGeminiKey = localStorage.getItem(KEY_GEMINI) || '';
+ const fileUpload = el('fileUpload');
+ const fileUploadHint = el('fileUploadHint');
 
-  function loadKeys() {
-    if (userOpenAIKey) {
-      openaiKeyInput.value = MASK;
-      openaiKeyHint.innerHTML = `<span class="success-text">✓ 已儲存</span> (sk-****${userOpenAIKey.slice(-4)})`;
-    } else {
-      openaiKeyInput.value = '';
-      openaiKeyHint.textContent = '尚未儲存 Key';
-    }
 
-    if (userGeminiKey) {
-      geminiKeyInput.value = MASK;
-      geminiKeyHint.innerHTML = `<span class="success-text">✓ 已儲存</span> (AIza****${userGeminiKey.slice(-4)})`;
-    } else {
-      geminiKeyInput.value = '';
-      geminiKeyHint.textContent = '尚未儲存 Key';
-    }
-  }
+ const controlElements = [generateBtn, modelSelect, inputText, ...modeRadios, targetAudience, scriptTone];
 
-  loadKeys();
-  updateCharCounter();
-  updateGenerateButtonState();
-  
+
+ // === 狀態初始化 ===
+ let userOpenAIKey = localStorage.getItem(KEY_OPENAI) || '';
+ let userGeminiKey = localStorage.getItem(KEY_GEMINI) || '';
+
+
+ function loadKeys() {
+   if (userOpenAIKey) {
+     openaiKeyInput.value = MASK;
+     openaiKeyHint.innerHTML = `<span class="success-text">✓ 已儲存</span> (sk-****${userOpenAIKey.slice(-4)})`;
+   } else {
+     openaiKeyInput.value = '';
+     openaiKeyHint.textContent = '尚未儲存 Key';
+   }
+
+
+   if (userGeminiKey) {
+     geminiKeyInput.value = MASK;
+     geminiKeyHint.innerHTML = `<span class="success-text">✓ 已儲存</span> (AIza****${userGeminiKey.slice(-4)})`;
+   } else {
+     geminiKeyInput.value = '';
+     geminiKeyHint.textContent = '尚未儲存 Key';
+   }
+ }
+
+
+ loadKeys();
+ updateCharCounter();
+ updateGenerateButtonState();
   // === 提示詞小幫手 ===
-  function showCopyMessage(message, isError = false) {
-    copyMsg.textContent = message;
-    if (isError) {
-        copyMsg.className = 'text-sm font-bold text-red-500';
-    } else if (message === '') {
-        copyMsg.className = 'text-sm';
-    } else {
-        copyMsg.className = 'text-sm font-bold text-green-600'; 
-        setTimeout(() => { copyMsg.textContent = ''; }, 3000);
-    }
-  }
+ function showCopyMessage(message, isError = false) {
+   copyMsg.textContent = message;
+   if (isError) {
+       copyMsg.className = 'text-sm font-bold text-red-500';
+   } else if (message === '') {
+       copyMsg.className = 'text-sm';
+   } else {
+       copyMsg.className = 'text-sm font-bold text-green-600';
+       setTimeout(() => { copyMsg.textContent = ''; }, 3000);
+   }
+ }
 
-  // === UI 控制 ===
-  function updateCharCounter() {
-    const rawText = inputText.value;
-    const processedText = rawText.replace(/^\s*[\r\n]/gm, ''); 
-    const len = processedText.length;
-    
-    charCount.textContent = len.toLocaleString();
-    const remain = INPUT_CHAR_LIMIT - len;
 
-    charRemain.textContent = remain.toLocaleString();
-    
-    if (remain < 0) {
-      charRemain.classList.add('warn-text');
-    } else {
-      charRemain.classList.remove('warn-text');
-    }
-    updateGenerateButtonState();
-  }
-  inputText.addEventListener('input', updateCharCounter);
-  modelSelect.addEventListener('change', updateGenerateButtonState); 
+ // === UI 控制 ===
+ function updateCharCounter() {
+   const rawText = inputText.value;
+   const processedText = rawText.replace(/^\s*[\r\n]/gm, '');
+   const len = processedText.length;
   
+   charCount.textContent = len.toLocaleString();
+   const remain = INPUT_CHAR_LIMIT - len;
+
+
+   charRemain.textContent = remain.toLocaleString();
+  
+   if (remain < 0) {
+     charRemain.classList.add('warn-text');
+   } else {
+     charRemain.classList.remove('warn-text');
+   }
+   updateGenerateButtonState();
+ }
+ inputText.addEventListener('input', updateCharCounter);
+ modelSelect.addEventListener('change', updateGenerateButtonState);
   function updateGenerateButtonState() {
-    const [provider, modelName] = modelSelect.value.split(':');
-    const hasInput = inputText.value.replace(/^\s*[\r\n]/gm, '').trim().length > 0;
-    
-    let hasKey = false;
-    if (provider === 'openai') hasKey = Boolean(userOpenAIKey);
-    else if (provider === 'gemini') hasKey = Boolean(userGeminiKey);
-
-    generateBtn.disabled = !(hasKey && hasInput);
-
-    if (!hasKey) {
-      sysMsg.textContent = `⚠️ 需儲存 ${provider.toUpperCase()} API Key 才能使用此模型`;
-      sysMsg.className = 'text-sm text-center sm:text-right text-orange-500 font-medium';
-    } else if (!hasInput) {
-        sysMsg.textContent = '請輸入素材內容';
-        sysMsg.className = 'text-sm text-center sm:text-right text-gray-400';
-    } else {
-      sysMsg.textContent = '準備就緒，可生成';
-      sysMsg.className = 'text-sm text-center sm:text-right text-green-600 font-medium';
-    }
-  }
-
-  function setLoadingState(isLoading) {
-    const disabled = isLoading;
-    controlElements.forEach(el => el.disabled = disabled);
-    openaiKeyInput.disabled = disabled; 
-    btnSaveOpenAIKey.disabled = disabled;
-    btnClearOpenAIKey.disabled = disabled;
-    geminiKeyInput.disabled = disabled; 
-    btnSaveGeminiKey.disabled = disabled;
-    btnClearGeminiKey.disabled = disabled;
-    fileUpload.disabled = disabled;
-
-    if (isLoading) {
-        btnIcon.innerHTML = '<span class="loading-spinner"></span>';
-        generateBtn.classList.add('cursor-not-allowed', 'opacity-80');
-    } else {
-        btnIcon.textContent = '✨';
-        generateBtn.classList.remove('cursor-not-allowed', 'opacity-80');
-    }
-  }
-
-  // === Key 處理 ===
-  btnSaveOpenAIKey.addEventListener('click', () => {
-    const val = openaiKeyInput.value.replace(/\s/g, '').trim(); 
-    if (val === MASK && userOpenAIKey) return; 
-    
-    const API_KEY_REGEX = /^sk-(proj-)?[a-zA-Z0-9_-]{40,}$/;
-    if (!API_KEY_REGEX.test(val)) {
-      openaiKeyHint.innerHTML = '<span class="warn-text">格式錯誤 (sk-...)</span>';
-      return;
-    }
-    localStorage.setItem(KEY_OPENAI, val);
-    userOpenAIKey = val;
-    loadKeys(); 
-    updateGenerateButtonState();
-  });
-
-  btnClearOpenAIKey.addEventListener('click', () => {
-    localStorage.removeItem(KEY_OPENAI);
-    userOpenAIKey = '';
-    loadKeys();
-    updateGenerateButtonState();
-  });
+   const [provider, modelName] = modelSelect.value.split(':');
+   const hasInput = inputText.value.replace(/^\s*[\r\n]/gm, '').trim().length > 0;
   
+   let hasKey = false;
+   if (provider === 'openai') hasKey = Boolean(userOpenAIKey);
+   else if (provider === 'gemini') hasKey = Boolean(userGeminiKey);
+
+
+   generateBtn.disabled = !(hasKey && hasInput);
+
+
+   if (!hasKey) {
+     sysMsg.textContent = `⚠️ 需儲存 ${provider.toUpperCase()} API Key 才能使用此模型`;
+     sysMsg.className = 'text-sm text-center sm:text-right text-orange-500 font-medium';
+   } else if (!hasInput) {
+       sysMsg.textContent = '請輸入素材內容';
+       sysMsg.className = 'text-sm text-center sm:text-right text-gray-400';
+   } else {
+     sysMsg.textContent = '準備就緒，可生成';
+     sysMsg.className = 'text-sm text-center sm:text-right text-green-600 font-medium';
+   }
+ }
+
+
+ function setLoadingState(isLoading) {
+   const disabled = isLoading;
+   controlElements.forEach(el => el.disabled = disabled);
+   openaiKeyInput.disabled = disabled;
+   btnSaveOpenAIKey.disabled = disabled;
+   btnClearOpenAIKey.disabled = disabled;
+   geminiKeyInput.disabled = disabled;
+   btnSaveGeminiKey.disabled = disabled;
+   btnClearGeminiKey.disabled = disabled;
+   fileUpload.disabled = disabled;
+
+
+   if (isLoading) {
+       btnIcon.innerHTML = '<span class="loading-spinner"></span>';
+       generateBtn.classList.add('cursor-not-allowed', 'opacity-80');
+   } else {
+       btnIcon.textContent = '✨';
+       generateBtn.classList.remove('cursor-not-allowed', 'opacity-80');
+   }
+ }
+
+
+ // === Key 處理 ===
+ btnSaveOpenAIKey.addEventListener('click', () => {
+   const val = openaiKeyInput.value.replace(/\s/g, '').trim();
+   if (val === MASK && userOpenAIKey) return;
+  
+   const API_KEY_REGEX = /^sk-(proj-)?[a-zA-Z0-9_-]{40,}$/;
+   if (!API_KEY_REGEX.test(val)) {
+     openaiKeyHint.innerHTML = '<span class="warn-text">格式錯誤 (sk-...)</span>';
+     return;
+   }
+   localStorage.setItem(KEY_OPENAI, val);
+   userOpenAIKey = val;
+   loadKeys();
+   updateGenerateButtonState();
+ });
+
+
+ btnClearOpenAIKey.addEventListener('click', () => {
+   localStorage.removeItem(KEY_OPENAI);
+   userOpenAIKey = '';
+   loadKeys();
+   updateGenerateButtonState();
+ });
   btnSaveGeminiKey.addEventListener('click', () => {
-    const val = geminiKeyInput.value.replace(/\s/g, '').trim(); 
-    if (val === MASK && userGeminiKey) return; 
-    
-    // 寬鬆一點的驗證
-    const API_KEY_REGEX = /^AIza[a-zA-Z0-9_-]{30,}$/; 
-    if (!API_KEY_REGEX.test(val)) {
-      geminiKeyHint.innerHTML = '<span class="warn-text">格式錯誤 (AIza...)</span>';
-      return;
-    }
-    localStorage.setItem(KEY_GEMINI, val);
-    userGeminiKey = val;
-    loadKeys(); 
-    updateGenerateButtonState();
-  });
-
-  btnClearGeminiKey.addEventListener('click', () => {
-    localStorage.removeItem(KEY_GEMINI);
-    userGeminiKey = '';
-    loadKeys();
-    updateGenerateButtonState();
-  });
-
-  // === 檔案上傳 ===
-  function handleFileUpload(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    
-    const isTxt = file.type === 'text/plain';
-    const isSrt = file.name.toLowerCase().endsWith('.srt');
-    
-    if (!isTxt && !isSrt) {
-      fileUploadHint.innerHTML = '<span class="warn-text">❌ 格式不支援</span>';
-      event.target.value = null;
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        inputText.value = e.target.result;
-        inputText.dispatchEvent(new Event('input', { bubbles: true }));
-        fileUploadHint.innerHTML = `<span class="success-text">✓ 已載入：${file.name}</span>`;
-      } catch (readError) {
-          fileUploadHint.textContent = '讀取錯誤';
-      }
-    };
-    reader.readAsText(file, 'UTF-8');
-    event.target.value = null;
-  }
-  fileUpload.addEventListener('change', handleFileUpload);
+   const val = geminiKeyInput.value.replace(/\s/g, '').trim();
+   if (val === MASK && userGeminiKey) return;
+  
+   // 寬鬆一點的驗證
+   const API_KEY_REGEX = /^AIza[a-zA-Z0-9_-]{30,}$/;
+   if (!API_KEY_REGEX.test(val)) {
+     geminiKeyHint.innerHTML = '<span class="warn-text">格式錯誤 (AIza...)</span>';
+     return;
+   }
+   localStorage.setItem(KEY_GEMINI, val);
+   userGeminiKey = val;
+   loadKeys();
+   updateGenerateButtonState();
+ });
 
 
-  // === API 核心 ===
-  async function callChatCompletions({ provider, modelName, prompt, signal }) {
-    const MAX_RETRY = 2; 
-    let attempt = 0;
-    let apiKey = provider === 'openai' ? userOpenAIKey : userGeminiKey;
-    
-    // 解析 System Prompt
-    let systemMessageContent = '你是一個專業的影音企劃助理。';
-    const promptLines = prompt.split('\n');
-    if (promptLines[0].startsWith('你是')) {
-        systemMessageContent = promptLines[0];
-        prompt = promptLines.slice(1).join('\n').trim(); 
-    }
-    
-    while (attempt <= MAX_RETRY) {
-      try {
-        let url, headers, body;
+ btnClearGeminiKey.addEventListener('click', () => {
+   localStorage.removeItem(KEY_GEMINI);
+   userGeminiKey = '';
+   loadKeys();
+   updateGenerateButtonState();
+ });
 
-        if (provider === 'openai') {
-          url = 'https://api.openai.com/v1/chat/completions';
-          headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` };
-          body = JSON.stringify({
-            model: modelName,
-            messages: [{ role: 'system', content: systemMessageContent }, { role: 'user', content: prompt }], 
-            temperature: 0.7,
-          });
 
-        } else if (provider === 'gemini') {
-          // Gemini API 結構
-          url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
-          headers = { 'Content-Type': 'application/json' };
-          body = JSON.stringify({
-            contents: [{ role: 'user', parts: [{ text: `${systemMessageContent}\n\n${prompt}` }] }],
-            generationConfig: { temperature: 0.7 }
-          });
-        }
-        
-        const res = await fetch(url, { method: 'POST', headers, body, signal });
-        const raw = await res.text();
-        let data;
-        try { data = JSON.parse(raw); } catch { data = null; }
+ // === 檔案上傳 ===
+ function handleFileUpload(event) {
+   const file = event.target.files[0];
+   if (!file) return;
+  
+   const isTxt = file.type === 'text/plain';
+   const isSrt = file.name.toLowerCase().endsWith('.srt');
+  
+   if (!isTxt && !isSrt) {
+     fileUploadHint.innerHTML = '<span class="warn-text">❌ 格式不支援</span>';
+     event.target.value = null;
+     return;
+   }
 
-        if (!res.ok) {
-          const msg = data?.error?.message || raw;
-          if (res.status === 429) { 
-            const backoff = 2000 * (attempt + 1);
-            await new Promise(r => setTimeout(r, backoff));
-            attempt++;
-            continue; 
-          }
-          throw new Error(`HTTP ${res.status}: ${msg}`);
-        }
 
-        let textOut = '';
-        if (provider === 'openai') {
-            textOut = data?.choices?.[0]?.message?.content || ''; 
-        } else if (provider === 'gemini') {
-            textOut = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-            if (!textOut && data?.candidates?.[0]?.finishReason === 'SAFETY') {
-                 throw new Error(`Gemini 安全性過濾阻擋了輸出內容`);
-            }
-        }
-        return textOut;
+   const reader = new FileReader();
+   reader.onload = (e) => {
+     try {
+       inputText.value = e.target.result;
+       inputText.dispatchEvent(new Event('input', { bubbles: true }));
+       fileUploadHint.innerHTML = `<span class="success-text">✓ 已載入：${file.name}</span>`;
+     } catch (readError) {
+         fileUploadHint.textContent = '讀取錯誤';
+     }
+   };
+   reader.readAsText(file, 'UTF-8');
+   event.target.value = null;
+ }
+ fileUpload.addEventListener('change', handleFileUpload);
 
-      } catch (e) {
-        if (e.name === 'AbortError') throw e;
-        if (attempt === MAX_RETRY) throw e;
-        attempt++;
-        await new Promise(r => setTimeout(r, 1000)); 
-      }
-    }
-  }
 
-  function buildScriptPrompt(mode, sourceText) {
-    const audience = targetAudience.value;
-    const tone = scriptTone.value;
 
-    let base = `你是一個資深數位影音企劃，專精於將長文本轉化為高流量的短影音腳本。請全程使用繁體中文 (Traditional Chinese) 並以 Markdown 表格呈現。`;
-    
-    let task = '';
-    if (mode === 'podcast') {
-        task = '任務：從素材中選出 5 段「最精華、含金量最高」的 45-75 秒片段。這些片段必須適合做成 Podcast 精華剪輯 (Reels/Shorts)。表格欄位需包含：[時間碼]、[話題標題]、[內容摘要]、[推薦理由]。';
-    } else if (mode === 'topic') {
-        task = '任務：請撰寫 3 段不同切入點的「議題型」短影音腳本 (每段 45-75 秒)。表格欄位需包含：[鏡頭序號]、[畫面建議 (Visuals)]、[旁白 (Voiceover)]、[字卡重點]。';
-    } else if (mode === 'marketing') {
-        // 更新：行銷短影音專屬 Prompt
-        task = '任務：請撰寫 3 段具備高轉換率的「行銷導購型」短影音腳本。目標對象是潛在消費者，推廣產品包含：線上課程、新書或訂閱制服務 (如親子天下 Premium)。結構請遵循 PAS (痛點-騷動-解決) 或 AIDA 模型。表格欄位需包含：[行銷階段/秒數]、[畫面視覺重點]、[旁白文案 (強調痛點與效益)]、[字幕特效/行動呼籲 (CTA)]。';
-    } else {
-        // people
-        task = '任務：請規劃 3 段「人物故事/訪談」型短影音腳本。重點在於情感與故事張力。表格欄位需包含：[段落主題]、[原音摘錄建議]、[旁白串場]、[情緒氛圍]。';
-    }
-    
-    const instruction = `目標受眾：${audience}。
+
+ // === API 核心 ===
+ async function callChatCompletions({ provider, modelName, prompt, signal }) {
+   const MAX_RETRY = 2;
+   let attempt = 0;
+   let apiKey = provider === 'openai' ? userOpenAIKey : userGeminiKey;
+  
+   // 解析 System Prompt
+   let systemMessageContent = '你是一個專業的影音企劃助理。';
+   const promptLines = prompt.split('\n');
+   if (promptLines[0].startsWith('你是')) {
+       systemMessageContent = promptLines[0];
+       prompt = promptLines.slice(1).join('\n').trim();
+   }
+  
+   while (attempt <= MAX_RETRY) {
+     try {
+       let url, headers, body;
+
+
+       if (provider === 'openai') {
+         url = 'https://api.openai.com/v1/chat/completions';
+         headers = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` };
+         body = JSON.stringify({
+           model: modelName,
+           messages: [{ role: 'system', content: systemMessageContent }, { role: 'user', content: prompt }],
+           temperature: 0.7,
+         });
+
+
+       } else if (provider === 'gemini') {
+         // Gemini API 結構
+         url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+         headers = { 'Content-Type': 'application/json' };
+         body = JSON.stringify({
+           contents: [{ role: 'user', parts: [{ text: `${systemMessageContent}\n\n${prompt}` }] }],
+           generationConfig: { temperature: 0.7 }
+         });
+       }
+      
+       const res = await fetch(url, { method: 'POST', headers, body, signal });
+       const raw = await res.text();
+       let data;
+       try { data = JSON.parse(raw); } catch { data = null; }
+
+
+       if (!res.ok) {
+         const msg = data?.error?.message || raw;
+         if (res.status === 429) {
+           const backoff = 2000 * (attempt + 1);
+           await new Promise(r => setTimeout(r, backoff));
+           attempt++;
+           continue;
+         }
+         throw new Error(`HTTP ${res.status}: ${msg}`);
+       }
+
+
+       let textOut = '';
+       if (provider === 'openai') {
+           textOut = data?.choices?.[0]?.message?.content || '';
+       } else if (provider === 'gemini') {
+           textOut = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+           if (!textOut && data?.candidates?.[0]?.finishReason === 'SAFETY') {
+                throw new Error(`Gemini 安全性過濾阻擋了輸出內容`);
+           }
+       }
+       return textOut;
+
+
+     } catch (e) {
+       if (e.name === 'AbortError') throw e;
+       if (attempt === MAX_RETRY) throw e;
+       attempt++;
+       await new Promise(r => setTimeout(r, 1000));
+     }
+   }
+ }
+
+
+ function buildScriptPrompt(mode, sourceText) {
+   const audience = targetAudience.value;
+   const tone = scriptTone.value;
+
+
+   let base = `你是一個資深數位影音企劃，專精於將長文本轉化為高流量的短影音腳本。請全程使用繁體中文 (Traditional Chinese) 並以 Markdown 表格呈現。`;
+  
+   let task = '';
+   if (mode === 'podcast') {
+       task = '任務：從素材中選出 5 段「最精華、含金量最高」的 45-75 秒片段。這些片段必須適合做成 Podcast 精華剪輯 (Reels/Shorts)。表格欄位需包含：[時間碼]、[話題標題]、[內容摘要]、[推薦理由]。';
+   } else if (mode === 'topic') {
+       task = '任務：請撰寫 3 段不同切入點的「議題型」短影音腳本 (每段 45-75 秒)。表格欄位需包含：[鏡頭序號]、[畫面建議 (Visuals)]、[旁白 (Voiceover)]、[字卡重點]。';
+   } else if (mode === 'marketing') {
+       // 更新：行銷短影音專屬 Prompt
+       task = '任務：請撰寫 3 段具備高轉換率的「行銷導購型」短影音腳本。目標對象是潛在消費者，推廣產品包含：線上課程、新書或訂閱制服務 (如親子天下 Premium)。結構請遵循 PAS (痛點-騷動-解決) 或 AIDA 模型。表格欄位需包含：[行銷階段/秒數]、[畫面視覺重點]、[旁白文案 (強調痛點與效益)]、[字幕特效/行動呼籲 (CTA)]。';
+   } else {
+       // people
+       task = '任務：請規劃 3 段「人物故事/訪談」型短影音腳本。重點在於情感與故事張力。表格欄位需包含：[段落主題]、[原音摘錄建議]、[旁白串場]、[情緒氛圍]。';
+   }
+  
+   const instruction = `目標受眾：${audience}。
 語氣風格：${tone}。
 請確保輸出格式為 Markdown，並直接顯示表格，不要有多餘的前言後語。`;
 
-    return `${base}
+
+   return `${base}
 ${instruction}
 ${task}
 
+
 【原始素材】
 ${sourceText}`;
-  }
+ }
 
-  // === 生成流程 ===
-  generateBtn.addEventListener('click', async () => {
-    showCopyMessage('', false);
-    const raw = inputText.value;
-    const processedRaw = raw.replace(/^\s*[\r\n]/gm, '').trim(); 
-    
-    if (!processedRaw) return;
-    
-    const [provider, modelName] = modelSelect.value.split(':');
-    
-    if (processedRaw.length > INPUT_CHAR_LIMIT) {
-        if (!confirm(`內容過長 (${processedRaw.length} 字)，可能會導致生成失敗。確定要繼續嗎？`)) return;
-    }
 
-    setLoadingState(true);
-    output.innerHTML = '<div class="flex flex-col items-center justify-center h-40 gap-4"><div class="loading-spinner !border-blue-500 !border-b-transparent w-8 h-8"></div><p class="text-gray-500 animate-pulse">正在構思腳本中...</p></div>';
-    sysMsg.textContent = `AI 正在閱讀並撰寫中 (Model: ${modelName})...`;
-    sysMsg.className = 'text-sm text-center sm:text-right text-blue-600 font-medium animate-pulse';
+ // === 生成流程 ===
+ generateBtn.addEventListener('click', async () => {
+   showCopyMessage('', false);
+   const raw = inputText.value;
+   const processedRaw = raw.replace(/^\s*[\r\n]/gm, '').trim();
+  
+   if (!processedRaw) return;
+  
+   const [provider, modelName] = modelSelect.value.split(':');
+  
+   if (processedRaw.length > INPUT_CHAR_LIMIT) {
+       if (!confirm(`內容過長 (${processedRaw.length} 字)，可能會導致生成失敗。確定要繼續嗎？`)) return;
+   }
+
+
+   setLoadingState(true);
+   output.innerHTML = '<div class="flex flex-col items-center justify-center h-40 gap-4"><div class="loading-spinner !border-blue-500 !border-b-transparent w-8 h-8"></div><p class="text-gray-500 animate-pulse">正在構思腳本中...</p></div>';
+   sysMsg.textContent = `AI 正在閱讀並撰寫中 (Model: ${modelName})...`;
+   sysMsg.className = 'text-sm text-center sm:text-right text-blue-600 font-medium animate-pulse';
+  
+   const mode = document.querySelector('input[name="mode"]:checked')?.value || 'topic';
+   const ac = new AbortController();
+   const timeout = setTimeout(() => ac.abort(), USE_TIMEOUT_MS);
+
+
+   try {
+     const scriptPrompt = buildScriptPrompt(mode, raw.trim());
+     const result = await callChatCompletions({ provider, modelName, prompt: scriptPrompt, signal: ac.signal });
+
+
+     output.innerHTML = marked.parse(result);
+     sysMsg.textContent = '✅ 生成完成！';
+     sysMsg.className = 'text-sm text-center sm:text-right text-green-600 font-bold';
+  
+   } catch (err) {
+     let errorTitle = '發生錯誤';
+     let errorDesc = err.message;
+
+
+     if (err.name === 'AbortError') {
+       errorDesc = '連線逾時，請檢查網路或減少字數。';
+     } else if (err.message.includes('401')) {
+       errorDesc = 'API Key 無效，請檢查設定。';
+     } else if (err.message.includes('429')) {
+       errorDesc = 'API 使用量已達上限 (Quota Exceeded)。';
+     } else if (err.message.includes('SAFETY')) {
+       errorDesc = '內容被 AI 安全機制攔截，請修改素材敏感詞。';
+     }
     
-    const mode = document.querySelector('input[name="mode"]:checked')?.value || 'topic';
-    const ac = new AbortController();
-    const timeout = setTimeout(() => ac.abort(), USE_TIMEOUT_MS);
+     output.innerHTML = `
+       <div class="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+           <div class="text-red-500 text-xl font-bold mb-2">❌ ${errorTitle}</div>
+           <p class="text-gray-700">${errorDesc}</p>
+       </div>
+     `;
+     sysMsg.textContent = '生成失敗';
+     sysMsg.className = 'text-sm text-center sm:text-right text-red-500 font-bold';
+     console.error(err);
+  
+   } finally {
+     clearTimeout(timeout);
+     setLoadingState(false);
+     updateGenerateButtonState();
+   }
+ });
 
-    try {
-      const scriptPrompt = buildScriptPrompt(mode, raw.trim()); 
-      const result = await callChatCompletions({ provider, modelName, prompt: scriptPrompt, signal: ac.signal });
 
-      output.innerHTML = marked.parse(result); 
-      sysMsg.textContent = '✅ 生成完成！';
-      sysMsg.className = 'text-sm text-center sm:text-right text-green-600 font-bold';
-    
-    } catch (err) {
-      let errorTitle = '發生錯誤';
-      let errorDesc = err.message;
+ // === 複製與下載 ===
+ el('btnCopy').addEventListener('click', async () => {
+   const html = output.innerHTML;
+   const text = output.textContent;
 
-      if (err.name === 'AbortError') {
-        errorDesc = '連線逾時，請檢查網路或減少字數。';
-      } else if (err.message.includes('401')) {
-        errorDesc = 'API Key 無效，請檢查設定。';
-      } else if (err.message.includes('429')) {
-        errorDesc = 'API 使用量已達上限 (Quota Exceeded)。';
-      } else if (err.message.includes('SAFETY')) {
-        errorDesc = '內容被 AI 安全機制攔截，請修改素材敏感詞。';
-      }
-      
-      output.innerHTML = `
-        <div class="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-            <div class="text-red-500 text-xl font-bold mb-2">❌ ${errorTitle}</div>
-            <p class="text-gray-700">${errorDesc}</p>
-        </div>
-      `;
-      sysMsg.textContent = '生成失敗';
-      sysMsg.className = 'text-sm text-center sm:text-right text-red-500 font-bold';
-      console.error(err);
-    
-    } finally {
-      clearTimeout(timeout);
-      setLoadingState(false);
-      updateGenerateButtonState();
-    }
-  });
 
-  // === 複製與下載 ===
-  el('btnCopy').addEventListener('click', async () => {
-    const html = output.innerHTML;
-    const text = output.textContent;
+   if (!text || text.includes('準備就緒')) return;
+  
+   try {
+       const blob = new Blob([html], { type: 'text/html' });
+       // @ts-ignore
+       const item = new ClipboardItem({
+           'text/html': blob,
+           'text/plain': new Blob([text], { type: 'text/plain' })
+       });
+       // @ts-ignore
+       await navigator.clipboard.write([item]);
+       showCopyMessage('已複製表格！', false);
+  
+   } catch (error) {
+       try {
+           await navigator.clipboard.writeText(text);
+           showCopyMessage('已複製純文字', false);
+       } catch (err2) {
+           showCopyMessage('複製失敗', true);
+       }
+   }
+ });
 
-    if (!text || text.includes('準備就緒')) return;
-    
-    try {
-        const blob = new Blob([html], { type: 'text/html' });
-        // @ts-ignore
-        const item = new ClipboardItem({
-            'text/html': blob,
-            'text/plain': new Blob([text], { type: 'text/plain' })
-        });
-        // @ts-ignore
-        await navigator.clipboard.write([item]);
-        showCopyMessage('已複製表格！', false);
-    
-    } catch (error) {
-        try {
-            await navigator.clipboard.writeText(text);
-            showCopyMessage('已複製純文字', false);
-        } catch (err2) {
-            showCopyMessage('複製失敗', true);
-        }
-    }
-  });
 
-  el('btnDownload').addEventListener('click', () => {
-    const text = output.textContent; 
-    if (!text || text.includes('準備就緒')) return;
-    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `script_${new Date().toISOString().slice(0,10)}.txt`;
-    a.click();
-    showCopyMessage('下載已開始', false);
-  });
-  </script>
+ el('btnDownload').addEventListener('click', () => {
+   const text = output.textContent;
+   if (!text || text.includes('準備就緒')) return;
+   const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+   const a = document.createElement('a');
+   a.href = URL.createObjectURL(blob);
+   a.download = `script_${new Date().toISOString().slice(0,10)}.txt`;
+   a.click();
+   showCopyMessage('下載已開始', false);
+ });
+ </script>
 </body>
 </html>
+
+
+
