@@ -88,7 +88,7 @@
   <header class="bg-white shadow-sm">
     <div class="max-w-4xl mx-auto px-4 py-8">
       <h1 class="text-4xl font-extrabold mb-2 text-sky-700">短影音腳本生成器 🎬</h1>
-      <p class="text-gray-600">系統將自動為您匹配最適用的高階 AI 模型，金鑰僅儲存在本機瀏覽器。</p>
+      <p class="text-gray-600">金鑰僅儲存在本機瀏覽器。</p>
     </div>
   </header>
 
@@ -533,16 +533,16 @@
         return;
     }
     
-    // 自動匹配最佳模型邏輯
+    // 自動匹配最佳模型邏輯：使用官方穩定版的 API 代碼，避免 404 找不到模型
     let provider = '';
     let modelName = '';
     
     if (userGeminiKey) {
         provider = 'gemini';
-        modelName = 'gemini-3.1-pro'; // 優先使用擅長處理長文本的 Gemini Pro
+        modelName = 'gemini-1.5-pro'; // 穩定且強大的官方 API 命名
     } else if (userOpenAIKey) {
         provider = 'openai';
-        modelName = 'gpt-5.4-thinking'; // 備用調用 OpenAI 思考型高階模型 (或可改回 gpt-4o)
+        modelName = 'gpt-4o'; // 穩定且強大的官方 API 命名
     }
     
     if (!provider) {
@@ -559,7 +559,7 @@
 
     setControlsDisabled(true); 
     output.textContent = '⏳ 正在生成中... (請耐心等待)'; 
-    sysMsg.textContent = `🚀 系統自動判定中... 已選用 ${provider.toUpperCase()} (${modelName}) 撰寫腳本…`;
+    sysMsg.textContent = `🚀 系統自動判定中... 已由 ${provider.toUpperCase()} 引擎為您生成腳本…`;
     
     const mode = document.querySelector('input[name="mode"]:checked')?.value || 'topic';
     
@@ -583,7 +583,7 @@
         sysMsg.textContent = `請檢查您的 ${provider.toUpperCase()} API Key 是否正確且有效。`;
       } else if (err.message.includes('HTTP 404')) {
         errorMsg = `❌ 錯誤：找不到模型版本 (HTTP 404)。`;
-        sysMsg.textContent = `模型版本目前不可用或已下線。請確認 API ID。`;
+        sysMsg.textContent = `模型版本目前不可用。請確認 API 金鑰權限。`;
       } else if (err.message.includes('HTTP 429')) {
         errorMsg = `❌ 錯誤：${err?.message || 'HTTP 429'}`;
         sysMsg.textContent = `錯誤：已達 ${provider.toUpperCase()} API 速率或額度上限 (Quota)。`;
