@@ -88,14 +88,14 @@
   <header class="bg-white shadow-sm">
     <div class="max-w-4xl mx-auto px-4 py-8">
       <h1 class="text-4xl font-extrabold mb-2 text-sky-700">短影音腳本生成器 🎬</h1>
-      <p class="text-gray-600">金鑰僅儲存在本機瀏覽器。</p>
+      <p class="text-gray-600">此版本支援 OpenAI 及 Gemini API，金鑰僅儲存在本機瀏覽器。</p>
     </div>
   </header>
 
   <main class="max-w-4xl mx-auto px-4 space-y-8 pt-10 pb-24">
     <div class="card">
       <h2 class="text-2xl font-semibold mb-4 text-gray-800">第一步：輸入你的 API Key</h2>
-      <p class="text-gray-600 mb-6">請填寫至少一個 API Key（輸入一組即可運作）。</p>
+      <p class="text-gray-600 mb-6">請填寫至少一個 API Key。</p>
 
       <div>
         <label for="openaiApiKey" class="block text-sm font-medium text-gray-700 mb-2">OpenAI API Key (sk-)</label>
@@ -147,7 +147,7 @@
     </div>
 
     <div class="card">
-      <h2 class="text-2xl font-semibold mb-4 text-gray-800">第三步：選擇影片型態與風格</h2>
+      <h2 class="text-2xl font-semibold mb-4 text-gray-800">第三步：選擇影片型態與模型</h2>
       
       <div class="space-y-3 mb-6 p-5 bg-sky-50 rounded-lg border border-sky-100">
         <label class="flex items-start gap-3 cursor-pointer">
@@ -164,7 +164,7 @@
         </label>
       </div>
 
-      <div class="flex flex-col sm:flex-row gap-4 p-5 bg-indigo-50 rounded-lg border border-indigo-100">
+      <div class="flex flex-col sm:flex-row gap-4 mb-6 p-5 bg-indigo-50 rounded-lg border border-indigo-100">
         <div class="flex-1">
           <label for="targetAudience" class="block text-sm font-medium text-gray-700 mb-2">目標受眾：</label>
           <select id="targetAudience" class="input-style text-sm w-full">
@@ -186,6 +186,23 @@
           </select>
         </div>
       </div>
+      
+      <div class="flex flex-wrap items-center gap-4 pt-5 mt-5 border-t border-gray-200">
+        <label class="text-sm text-gray-700 font-medium">選擇模型 (API 代碼)：</label>
+        <select id="modelSelect" class="input-style text-sm w-full sm:w-auto">
+          <optgroup label="OpenAI (需 sk- Key)">
+            <option value="openai:gpt-4o-mini" selected>gpt-4o-mini（建議：快速且低成本）</option> 
+            <option value="openai:gpt-4o">gpt-4o（高階：適合複雜腳本推理）</option>
+            <option value="openai:o1-mini">o1-mini（思考型：深度邏輯推理）</option>
+          </optgroup>
+          <optgroup label="Google Gemini (需 AIza Key)">
+            <option value="gemini:gemini-2.0-flash">gemini-2.0-flash（最新版：快速且強大）</option>
+            <option value="gemini:gemini-1.5-pro">gemini-1.5-pro（進階版：擅長處理超長文本）</option>
+            <option value="gemini:gemini-1.5-flash">gemini-1.5-flash（穩定版：高CP值）</option>
+          </optgroup>
+        </select>
+      </div>
+      <p class="muted mt-3">※ 若後續 API 有更新版本，可直接在此程式碼中的 <code>&lt;option value="..."&gt;</code> 替換為最新的 API 代碼即可。</p>
     </div>
 
     <div class="card">
@@ -234,6 +251,7 @@
   const sysMsg = el('sysMsg');
   const copyMsg = el('copyMsg'); 
   
+  const modelSelect = el('modelSelect');
   const inputText = el('inputText');
   const charLimit = el('charLimit');
   const charCount = el('charRemain').previousElementSibling; 
@@ -246,7 +264,7 @@
   const fileUpload = el('fileUpload');
   const fileUploadHint = el('fileUploadHint');
 
-  const controlElements = [generateBtn, inputText, ...modeRadios, targetAudience, scriptTone];
+  const controlElements = [generateBtn, modelSelect, inputText, ...modeRadios, targetAudience, scriptTone];
 
   // === 狀態初始化 ===
   let userOpenAIKey = localStorage.getItem(KEY_OPENAI) || '';
@@ -258,7 +276,7 @@
       openaiKeyHint.textContent = `✅ 已儲存 OpenAI Key：sk-****${userOpenAIKey.slice(-4)}`;
     } else {
       openaiKeyInput.value = '';
-      openaiKeyHint.textContent = '未設定 OpenAI Key';
+      openaiKeyHint.textContent = '請輸入 OpenAI Key';
     }
 
     if (userGeminiKey) {
@@ -266,7 +284,7 @@
       geminiKeyHint.textContent = `✅ 已儲存 Gemini Key：AIza****${userGeminiKey.slice(-4)}`;
     } else {
       geminiKeyInput.value = '';
-      geminiKeyHint.textContent = '未設定 Gemini Key';
+      geminiKeyHint.textContent = '請輸入 Gemini Key';
     }
   }
 
@@ -306,19 +324,22 @@
     updateGenerateButtonState();
   }
   inputText.addEventListener('input', updateCharCounter);
+  modelSelect.addEventListener('change', updateGenerateButtonState); 
   
   function updateGenerateButtonState() {
+    const [provider, modelName] = modelSelect.value.split(':');
     const hasInput = inputText.value.replace(/^\s*[\r\n]/gm, '').trim().length > 0;
-    const hasKey = Boolean(userOpenAIKey) || Boolean(userGeminiKey);
+    
+    let hasKey = false;
+    if (provider === 'openai') hasKey = Boolean(userOpenAIKey);
+    else if (provider === 'gemini') hasKey = Boolean(userGeminiKey);
 
     generateBtn.disabled = !(hasKey && hasInput);
 
     if (!hasKey) {
-      sysMsg.textContent = `請先儲存至少一組 API Key，系統才能為您運作。`;
-    } else if (!hasInput) {
-      sysMsg.textContent = `請貼上欲轉換的文章或逐字稿。`;
+      sysMsg.textContent = `請先儲存有效的 ${provider.toUpperCase()} API Key，才能使用 ${modelName} 模型。`;
     } else {
-      sysMsg.textContent = '已就緒，點擊確認後系統將自動匹配最佳模型生成。';
+      sysMsg.textContent = '已就緒，點擊確認生成。';
     }
   }
 
@@ -533,20 +554,11 @@
         return;
     }
     
-    // 自動匹配最佳模型邏輯：使用官方穩定版的 API 代碼，避免 404 找不到模型
-    let provider = '';
-    let modelName = '';
+    const [provider, modelName] = modelSelect.value.split(':');
+    let apiKeyUsed = provider === 'openai' ? userOpenAIKey : userGeminiKey;
     
-    if (userGeminiKey) {
-        provider = 'gemini';
-        modelName = 'gemini-1.5-pro'; // 穩定且強大的官方 API 命名
-    } else if (userOpenAIKey) {
-        provider = 'openai';
-        modelName = 'gpt-4o'; // 穩定且強大的官方 API 命名
-    }
-    
-    if (!provider) {
-        sysMsg.textContent = `請先輸入 API Key！`;
+    if (!apiKeyUsed) {
+        sysMsg.textContent = `請先輸入你的 ${provider.toUpperCase()} API Key！`;
         return;
     }
     
@@ -559,7 +571,7 @@
 
     setControlsDisabled(true); 
     output.textContent = '⏳ 正在生成中... (請耐心等待)'; 
-    sysMsg.textContent = `🚀 系統自動判定中... 已由 ${provider.toUpperCase()} 引擎為您生成腳本…`;
+    sysMsg.textContent = `使用 ${provider.toUpperCase()} (${modelName}) 撰寫腳本…`;
     
     const mode = document.querySelector('input[name="mode"]:checked')?.value || 'topic';
     
@@ -583,7 +595,7 @@
         sysMsg.textContent = `請檢查您的 ${provider.toUpperCase()} API Key 是否正確且有效。`;
       } else if (err.message.includes('HTTP 404')) {
         errorMsg = `❌ 錯誤：找不到模型版本 (HTTP 404)。`;
-        sysMsg.textContent = `模型版本目前不可用。請確認 API 金鑰權限。`;
+        sysMsg.textContent = `請確認您的 API 金鑰是否具備使用 ${modelName} 的權限。`;
       } else if (err.message.includes('HTTP 429')) {
         errorMsg = `❌ 錯誤：${err?.message || 'HTTP 429'}`;
         sysMsg.textContent = `錯誤：已達 ${provider.toUpperCase()} API 速率或額度上限 (Quota)。`;
